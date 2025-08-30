@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use market_data::{AlphaVantage, EnhancedMarketSeries, MarketClient, OutputSize, Interval};
 use std::env::var;
 
-use super::super::sql::{insert_live_data, metadata, TimeSeriesData};
+use super::super::sql::TimeSeriesData;
 
 lazy_static! {
     static ref TOKEN: String =
@@ -11,9 +11,7 @@ lazy_static! {
 }
 
 pub fn live_data(
-    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     symbol: &str,
-    exchange_code: &str,
 )  -> Result<Vec<TimeSeriesData>, Box<dyn std::error::Error>> {
     let mut site = AlphaVantage::new(TOKEN.to_string());
     // retrieve per minute data
@@ -24,9 +22,6 @@ pub fn live_data(
     // create the MarketClient
     let mut client = MarketClient::new(site);
 
-    // check if we have data for this symbol
-    let stock_symbol = symbol.to_string();
-    let metadata = metadata(sql_connection.clone(), exchange_code, &stock_symbol);
     // creates the query URL & download the raw data
     client = client.create_endpoint()?.get_data()?;
     // transform into MarketSeries, that can be used for further processing
@@ -57,8 +52,7 @@ pub fn live_data(
     // store the data
     let mut retvec = Vec::new();
     for data in enhanced_data.iter() {
-        let ret = insert_live_data(sql_connection.clone(), &metadata, data);
-        retvec.extend(ret);
+        retvec.extend(super::marketdata_to_timeseries(data));
     }
     Ok(retvec)
 }

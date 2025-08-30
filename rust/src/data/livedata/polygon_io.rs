@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use market_data::{EnhancedMarketSeries, Interval, MarketClient, Polygon};
 use std::env::var;
 
-use super::super::sql::{insert_live_data, metadata, TimeSeriesData};
+use super::super::sql::TimeSeriesData;
 
 lazy_static! {
     static ref TOKEN: String =
@@ -11,9 +11,7 @@ lazy_static! {
 }
 
 pub fn live_data(
-    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     symbol: &str,
-    exchange_code: &str,
 )  -> Result<Vec<TimeSeriesData>, Box<dyn std::error::Error>> {
     let site: Polygon = Polygon::new(TOKEN.to_string());
     // create the MarketClient
@@ -21,7 +19,6 @@ pub fn live_data(
 
     // check if we have data for this symbol
     let stock_symbol = symbol.to_string();
-    let metadata = metadata(sql_connection.clone(), exchange_code, &stock_symbol);
     // retrieve per minute data for the last 10 minutes
     let datestring = chrono::Utc::now().format("%Y-%m-%d").to_string();
     client.site.intraday_series(stock_symbol, &datestring, &datestring, Interval::Min1, 960)?;
@@ -55,8 +52,7 @@ pub fn live_data(
     // store the data
     let mut retvec = Vec::new();
     for data in enhanced_data.iter() {
-        let ret = insert_live_data(sql_connection.clone(), &metadata, data);
-        retvec.extend(ret);
+        retvec.extend(super::marketdata_to_timeseries(data));
     }
     Ok(retvec)
 }
