@@ -12,15 +12,26 @@ lazy_static! {
 
 pub fn live_data(
     symbol: &str,
+    start_time: chrono::NaiveDateTime,
+    end_time: chrono::NaiveDateTime,
 )  -> Result<Vec<TimeSeriesData>, Box<dyn std::error::Error>> {
     let site: Twelvedata = Twelvedata::new(TOKEN.to_string());
     // create the MarketClient
     let mut client: MarketClient<Twelvedata> = MarketClient::new(site);
-
+    // calculate the number of seconds since the last timestamp
+    let mut num_data = ((end_time - start_time).as_seconds_f32() / 60.0).round().abs() as u32;
+    if num_data == 0 {
+        return Err(format!("No new data available for this stock!").into())
+    }
+    if end_time.date() != start_time.date() {
+        // last data from yesterday
+        let start_time_today = end_time.date().and_hms_opt(7, 0, 0).unwrap();
+        num_data = ((end_time - start_time_today).as_seconds_f32() / 60.0).round().abs() as u32;
+    }
     // check if we have data for this symbol
     let stock_symbol = symbol.to_string();
     // retrieve per minute data for the last 10 minutes
-    client.site.intraday_series(stock_symbol, 10, Interval::Min1)?;
+    client.site.intraday_series(stock_symbol, num_data, Interval::Min1)?;
     // creates the query URL & download the raw data
     client = client.create_endpoint()?.get_data()?;
     // transform into MarketSeries, that can be used for further processing

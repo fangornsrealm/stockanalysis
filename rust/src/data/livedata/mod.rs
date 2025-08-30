@@ -15,14 +15,16 @@ use chrono::NaiveDateTime;
 // find out which provider is used and use the according function
 pub fn live_data(
     symbol: &str,
+    start_time: NaiveDateTime,
+    end_time: NaiveDateTime,
 )  -> Result<Vec<TimeSeriesData>, Box<dyn std::error::Error>> {
 
     match var("Twelvedata_TOKEN") {
-        Ok(_val) => twelvedata::live_data(symbol),
+        Ok(_val) => twelvedata::live_data(symbol, start_time, end_time),
         Err(_e) => match var("AlphaVantage_TOKEN") {
-            Ok(_val) => alphavantage::live_data(symbol),
+            Ok(_val) => alphavantage::live_data(symbol, start_time, end_time),
             Err(_e) => match var("Polygon_APIKey") {
-                Ok(_val) => polygon_io::live_data(symbol),
+                Ok(_val) => polygon_io::live_data(symbol, start_time, end_time),
                 Err(e) => {
                     print!("Please use one of the supported supplier for live stock data!");
                     Err(Box::new(e))
@@ -105,8 +107,11 @@ pub fn update_dataframe(
     df: &DataFrame,
     stock_symbol: &str, 
 ) -> Result<DataFrame, Box<dyn Error>> {
-
-    let series: Vec<super::sql::TimeSeriesData> = match live_data(&stock_symbol) {
+    let col_val = df.column("timestamp")?.i64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<i64>>();
+    let start_timestamp = col_val[col_val.len()-1];
+    let start_time = chrono::DateTime::from_timestamp(start_timestamp, 0).unwrap().naive_utc();
+    let end_time = chrono::Utc::now().naive_utc();
+    let series: Vec<super::sql::TimeSeriesData> = match live_data(&stock_symbol, start_time, end_time) {
         Ok(res) => res,
         Err(error) => {
             log::error!("Failed to update timeseries data for {}: {}", stock_symbol, error);

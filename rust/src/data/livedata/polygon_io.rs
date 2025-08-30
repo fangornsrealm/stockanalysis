@@ -12,6 +12,8 @@ lazy_static! {
 
 pub fn live_data(
     symbol: &str,
+    _start_time: chrono::NaiveDateTime,
+    _end_time: chrono::NaiveDateTime,
 )  -> Result<Vec<TimeSeriesData>, Box<dyn std::error::Error>> {
     let site: Polygon = Polygon::new(TOKEN.to_string());
     // create the MarketClient
