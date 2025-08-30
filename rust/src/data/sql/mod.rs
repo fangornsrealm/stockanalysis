@@ -1,5 +1,6 @@
 //! Database connection to the data stored by stock-livedata
 //! 
+use std::sync::Arc;
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 
@@ -419,6 +420,20 @@ pub struct TimeSeriesData {
     pub close: f64,
     /// trade volume of time frame
     pub volume: f64,
+    /// open value of time frame
+    pub sma: f64,
+    /// highest value of time frame
+    pub ema: f64,
+    /// lowest value of time frame
+    pub rsi: f64,
+    /// close value of time frame
+    pub stochastic: f64,
+    /// trade volume of time frame
+    pub macd_value: f64,
+    /// close value of time frame
+    pub signal_value: f64,
+    /// trade volume of time frame
+    pub hist_value: f64,
 }
 
 impl Default for TimeSeriesData {
@@ -430,6 +445,13 @@ impl Default for TimeSeriesData {
             low: 0.0,
             close: 0.0,
             volume: 0.0,
+            sma: 0.0,
+            ema: 0.0,
+            rsi: 0.0,
+            stochastic: 0.0,
+            macd_value: 0.0,
+            signal_value: 0.0,
+            hist_value: 0.0,
         }
     }
 }
@@ -659,6 +681,13 @@ pub fn insert_live_data(
             low: timeseries.series[i].low as f64,
             close: timeseries.series[i].close as f64,
             volume: timeseries.series[i].volume as f64,
+            sma: sma as f64, 
+            ema: ema as f64, 
+            rsi: rsi as f64, 
+            stochastic: stochastic as f64, 
+            macd_value: macd_value as f64, 
+            signal_value: signal_value as f64, 
+            hist_value: hist_value as f64
         };
         series.push(v);
     }
@@ -694,7 +723,7 @@ pub fn _update_live_data(
 
 
 /// connect to the database
-pub fn connect() -> Result<rusqlite::Connection, rusqlite::Error> {
+pub fn connect() -> Result<Arc<std::sync::Mutex<rusqlite::Connection>>, rusqlite::Error> {
 
     let sqlite_file;
     let connection;
@@ -721,5 +750,5 @@ pub fn connect() -> Result<rusqlite::Connection, rusqlite::Error> {
     } else {
         connection = Connection::open(sqlite_file)?;
     }
-    Ok(connection)
+    Ok(std::sync::Arc::new(std::sync::Mutex::new(connection)))
 }

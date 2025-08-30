@@ -1,5 +1,6 @@
 use polars::prelude::*;
 use std::error::Error;
+
 use crate::data::yahoo;
 use crate::data::google;
 use crate::models::ticker::Ticker;
@@ -25,23 +26,28 @@ impl TickerData for Ticker {
         yahoo::api::get_ticker_stats(&self.ticker).await
     }
 
-
-    /// Returns the Ticker OHLCV Data from given source
+    /// Returns the Ticker OHLCV Data from database or updates them if already loaded
     async fn get_chart(&self) -> Result<DataFrame, Box<dyn Error>> {
+        
         if let Some(ticker_data) = &self.ticker_data {
-            ticker_data.clone().to_dataframe()
+            super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
         } else {
-            yahoo::api::get_chart(&self.ticker, &self.start_date, &self.end_date, self.interval).await
+            match super::sql::connect() {
+                Ok(sql_connection) => {
+                    let start_date = chrono::NaiveDateTime::parse_from_str("1970-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")?;
+                    let end_date = chrono::Utc::now().naive_utc();
+                    super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection.clone(), &self.ticker, start_date, end_date)
+                }
+                Err(error) => Err(Box::new(error))
+            }
         }
     }
-
 
     /// Returns Ticker Option Chain Data from Yahoo Finance for all available expirations
     async fn get_options(&self) -> Result<Options, Box<dyn Error>> {
         yahoo::api::get_options(&self.ticker).await
     }
-
-
+    
     /// Returns Ticker Financials from Yahoo Finance for a given statement type and frequency
     async fn get_financials(
         &self,
