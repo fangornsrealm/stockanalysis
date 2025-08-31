@@ -394,10 +394,15 @@ pub fn metadata(
         }
     }
     if !desired_found {
-        exchange_string = equity_list[0].mic_code.clone();
-        m.currency = equity_list[0].currency.clone();
-        m.r#type = equity_list[0].r#type.clone();
-        m.exchange_code = equity_list[0].mic_code.clone();
+        if equity_list.len() > 0 {
+            exchange_string = equity_list[0].mic_code.clone();
+            m.currency = equity_list[0].currency.clone();
+            m.r#type = equity_list[0].r#type.clone();
+            m.exchange_code = equity_list[0].mic_code.clone();
+        } else {
+            log::error!("Failed to find stock symbol {}!", m.symbol);
+            return m;
+        }
     }
     let exchange = exchange(sql_connection.clone(), &exchange_string);
     m.exchange = exchange.title.clone();
