@@ -1,0 +1,13 @@
+[package]
+name = "testexample"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = { version = "0.4", features = ["unstable-locales"] }
+dirs = "6.0.0"
+finalytics = { path = "../rust/", features = ["kaleido"] }
+log = "0.4"
+polars = { version = "0.49.1", default-features = false, features = ["lazy", "dtype-datetime", "rows", "fmt_no_tty", "json", "is_in"] }
+simplelog = { version = "0.12.2", features = ["paris"] }
+tokio = "1"
