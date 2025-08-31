@@ -36,76 +36,39 @@ pub fn ohlcv_to_dataframe(
 
     let series: Vec<super::TimeSeriesData> = super::live_data(sql_connection.clone(), &metadata);
 
-    let result = match serde_json::to_string(&series) {
-        Ok(out) => out,
-        Err(error) => {
-            log::error!("Failed to turn Timeseries for {} into JSON: {}", stock_symbol, error);
-            std::process::exit(1)
-        }
-    };
-
-    let value = match serde_json::from_str::<serde_json::Value>(&result){
-        Ok(val) => val,
-        Err(error) => {
-            log::error!("Failed to turn Timeseries for {} into Value: {}", stock_symbol, error);
-            std::process::exit(1)
-        }
-    };
-
     let timestamp = series
         .iter()
         .map(|o| to_datetime(o.datetime))
         .collect::<Vec<NaiveDateTime>>();
 
-    let open = value["open"]
-        .as_array()
-        .ok_or(format!("open array not found for {stock_symbol}: {result}"))?
+    let open = series
         .iter()
-        .map(|o| o.as_f64().unwrap_or(0.0))
+        .map(|o| o.open)
         .collect::<Vec<f64>>();
 
-    let high = value["high"]
-        .as_array()
-        .ok_or(format!("high array not found for {stock_symbol}: {result}"))?
+    let high = series
         .iter()
-        .map(|h| h.as_f64().unwrap_or(0.0))
+        .map(|o| o.high)
         .collect::<Vec<f64>>();
 
-    let low = value["low"]
-        .as_array()
-        .ok_or(format!("low array not found for {stock_symbol}: {result}"))?
+    let low = series
         .iter()
-        .map(|l| l.as_f64().unwrap_or(0.0))
+        .map(|o| o.low)
         .collect::<Vec<f64>>();
 
-    let close = value["close"]
-        .as_array()
-        .ok_or(format!("close array not found for {stock_symbol}: {result}"))?
+    let close = series
         .iter()
-        .map(|c| c.as_f64().unwrap_or(0.0))
+        .map(|o| o.close)
         .collect::<Vec<f64>>();
 
-    let volume = value["volume"]
-        .as_array()
-        .ok_or(format!("volume array not found for {stock_symbol}: {result}"))?
+    let volume = series
         .iter()
-        .map(|v| v.as_f64().unwrap_or(0.0))
+        .map(|o| o.volume)
         .collect::<Vec<f64>>();
-
-    let adjclose = &value["indicators"]["adjclose"][0]["adjclose"]
-        .as_array()
-        .unwrap_or_else(|| {
-            value["close"]
-                .as_array()
-                .ok_or(format!("close array not found for {stock_symbol}: {result}"))
-                .unwrap_or_else(|_| {
-                    value["close"]
-                        .as_array()
-                        .expect("close array not found")
-                })
-        })
+    
+    let adjclose = series
         .iter()
-        .map(|c| c.as_f64().unwrap_or(0.0))
+        .map(|o| o.close)
         .collect::<Vec<f64>>();
 
     let df = df!(
