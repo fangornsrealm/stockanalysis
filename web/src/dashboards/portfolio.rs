@@ -8,10 +8,17 @@ use crate::components::table::TableContainer;
 
 #[component]
 pub fn Portfolio() -> Element {
-    let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
+    let symbols = match std::env::var("FINALYTICS_SYMBOLS") {
+        Ok(arr) => {
+            let symbols = arr.replace(" ", ",");
+            use_signal(|| symbols)
+        }
+        Err(_) => use_signal(|| "AAPL,ADBE,AMD,ARM,BNP,BYD,DELL,ENR,GOOGL,GTLB,HPE,MSFT,MU,NVDA,RHM,SMCI,META,DSY,IBM,BIDU,SAP,OKTA,NET,OVH,IFX,INTC,NOW,YSN,SSTK,VRNS".to_string()),
+    };
+    //let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
     let mut benchmark_symbol = use_signal(|| "^GSPC".to_string());
-    let mut start_date = use_signal(|| "2023-01-01".to_string());
-    let mut end_date = use_signal(|| "2024-12-31".to_string());
+    let mut start_date = use_signal(|| "2025-07-01".to_string());
+    let mut end_date = use_signal(|| "2025-08-31".to_string());
     let mut interval = use_signal(|| "1d".to_string());
     let mut confidence_level = use_signal(|| 0.95);
     let mut risk_free_rate = use_signal(|| 0.02);
@@ -27,7 +34,7 @@ pub fn Portfolio() -> Element {
     info!("risk_free: {:?}", risk_free_rate());
     info!("objective: {:?}", objective_function());
     info!("active_tab: {:?}", active_tab());
-
+    
     let mut chart = use_server_future(move || async move {
         match get_portfolio_charts(
             symbols()
