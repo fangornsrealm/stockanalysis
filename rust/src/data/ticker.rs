@@ -30,7 +30,9 @@ impl TickerData for Ticker {
     async fn get_chart(&self) -> Result<DataFrame, Box<dyn Error>> {
         
         if let Some(ticker_data) = &self.ticker_data {
-            super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
+            ticker_data.clone().to_dataframe()
+            // deactivated until there is a subscription for live data Germany
+            //super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
         } else {
             match super::sql::connect() {
                 Ok(sql_connection) => {
