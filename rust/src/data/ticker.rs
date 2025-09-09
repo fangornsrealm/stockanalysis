@@ -34,14 +34,10 @@ impl TickerData for Ticker {
             // deactivated until there is a subscription for live data Germany
             //super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
         } else {
-            match super::sql::connect() {
-                Ok(sql_connection) => {
-                    let start_date = chrono::NaiveDateTime::parse_from_str("1970-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")?;
-                    let end_date = chrono::Utc::now().naive_utc();
-                    super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection.clone(), &self.ticker, start_date, end_date)
-                }
-                Err(error) => Err(Box::new(error))
-            }
+            let sql_connection = crate::data::sql::connect();
+            let start_date = chrono::NaiveDateTime::parse_from_str("1970-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")?;
+            let end_date = chrono::Utc::now().naive_utc();
+            super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date)
         }
     }
 
