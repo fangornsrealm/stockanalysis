@@ -1,12 +1,12 @@
 //! Database connection to the data stored by stock-livedata
-//! 
-use std::sync::Arc;
+//!
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub mod to_dataframe;
 
-/// Metadata stock metadata 
+/// Metadata stock metadata
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MetaData {
     symbol: String,
@@ -39,7 +39,7 @@ impl Default for MetaData {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Exchange {
     /// title
-    pub title: String,  
+    pub title: String,
     ///name
     pub name: String,
     /// code
@@ -95,7 +95,6 @@ impl Default for StockEquity {
     }
 }
 
-
 impl Default for Exchange {
     fn default() -> Exchange {
         Exchange {
@@ -129,7 +128,9 @@ pub fn equity(
             Ok(mut rows) => loop {
                 match rows.next() {
                     Ok(Some(row)) => {
-                        let mut s = StockEquity {..Default::default()};
+                        let mut s = StockEquity {
+                            ..Default::default()
+                        };
                         match row.get(0) {
                             Ok(val) => {
                                 let st: String = val;
@@ -261,7 +262,9 @@ pub fn exchange(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     exchange_code: &str,
 ) -> Exchange {
-    let mut s = Exchange {..Default::default()};
+    let mut s = Exchange {
+        ..Default::default()
+    };
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -453,7 +456,7 @@ pub fn live_data_count(
             return 0;
         }
     };
-    let query = "SELECT COUNT(timestamp) FROM time_series WHERE symbol = ?1";
+    let query = "SELECT COUNT(timestamp) FROM live_data WHERE symbol = ?1";
     match connection.prepare(query) {
         Ok(mut statement) => {
             match statement.query(params![&metadata.symbol]) {
@@ -557,7 +560,7 @@ pub fn live_data(
                                         continue;
                                     }
                                 }
-                                match row.get(4) {
+                                match row.get(5) {
                                     Ok(val) => s.volume = val,
                                     Err(error) => {
                                         log::error!("Failed to read volume for file: {}", error);
@@ -698,12 +701,166 @@ pub fn _update_live_data(
     insert_live_data(sql_connection.clone(), metadata, timeseries);
 }
 
+/// return the number of time series data for the stock
+pub fn active_symbols_count(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    metadata: &MetaData,
+) -> usize {
+    let mut num = 0_usize;
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return 0;
+        }
+    };
+    let query = "SELECT COUNT(timestamp) FROM active_symbols WHERE symbol = ?1";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![&metadata.symbol]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => match row.get(0) {
+                                Ok(val) => num = val,
+                                Err(error) => {
+                                    log::error!("Failed to read datetime for file: {}", error);
+                                    continue;
+                                }
+                            },
+                            Ok(None) => {
+                                //log::warn!("No data read from indices.");
+                                break;
+                            }
+                            Err(error) => {
+                                log::error!("Failed to read a row from indices: {}", error);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    log::error!(
+                        "could not read line from videostore_indices database: {}",
+                        err
+                    );
+                }
+            }
+        }
+        Err(err) => {
+            log::error!("could not prepare SQL statement: {}", err);
+        }
+    }
+    num
+}
 
-/// connect to the database
-pub fn connect() -> Result<Arc<std::sync::Mutex<rusqlite::Connection>>, rusqlite::Error> {
+pub fn active_symbols(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+) -> Vec<String> {
+    let mut t = Vec::new();
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return t;
+        }
+    };
+    let query = "SELECT symbol FROM active_symbols ORDER BY symbol ASC";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => match row.get(0) {
+                                Ok(val) => {
+                                    let s = val;
+                                    t.push(s);
+                                }
+                                Err(error) => {
+                                    log::error!("Failed to read open for live_data: {}", error);
+                                    continue;
+                                }
+                            },
+                            Ok(None) => {
+                                //log::warn!("No data read from indices.");
+                                break;
+                            }
+                            Err(error) => {
+                                log::error!("Failed to read a row from live_data: {}", error);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    log::error!("could not read line from live_data database: {}", err);
+                }
+            }
+        }
+        Err(err) => {
+            log::error!("could not prepare SQL statement: {}", err);
+        }
+    }
 
+    t
+}
+
+pub fn insert_active_symbols(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    symbols: &Vec<String>,
+) -> u32 {
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return 1;
+        }
+    };
+    for i in 0..symbols.len() {
+        match connection.execute(
+            "INSERT INTO active_symbols (symbol) VALUES (?1)",
+            params![&symbols[i]],
+        ) {
+            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Err(error) => {
+                log::error!("Failed insert active_symbols! {}", error);
+                return 1;
+            }
+        }
+    }
+    0
+}
+
+pub fn _delete_active_symbols(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    symbols: &Vec<String>,
+) {
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return;
+        }
+    };
+    for i in 0..symbols.len() {
+        let _ret = connection.execute(
+            "DELETE FROM active_symbols WHERE symbol = ?1",
+            params![&symbols[i]],
+        );
+    }
+}
+
+pub fn _update_active_symbols(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    symbols: &Vec<String>,
+) {
+    _delete_active_symbols(sql_connection.clone(), symbols);
+    insert_active_symbols(sql_connection.clone(), symbols);
+}
+
+fn sql_file_path() -> std::path::PathBuf {
     let sqlite_file;
-    let connection;
     match dirs::data_local_dir() {
         Some(pb) => {
             let mut dir = pb.join("stock-livedata");
@@ -721,11 +878,19 @@ pub fn connect() -> Result<Arc<std::sync::Mutex<rusqlite::Connection>>, rusqlite
             sqlite_file = dir.join("time_series.sqlite");
         }
     }
+    sqlite_file
+}
 
-    if !sqlite_file.is_file() {
-        return Err(rusqlite::Error::InvalidQuery);
-    } else {
-        connection = Connection::open(sqlite_file)?;
+use lazy_static::lazy_static;
+
+/// connect to the database
+pub fn connect() -> Arc<std::sync::Mutex<rusqlite::Connection>> {
+    lazy_static! {
+        static ref SQL_CONNECTION: Arc<std::sync::Mutex<rusqlite::Connection>> =
+            std::sync::Arc::new(std::sync::Mutex::new(
+                Connection::open(sql_file_path().as_path()).unwrap()
+            ));
     }
-    Ok(std::sync::Arc::new(std::sync::Mutex::new(connection)))
+
+    SQL_CONNECTION.clone()
 }
