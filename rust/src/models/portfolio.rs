@@ -15,7 +15,6 @@ pub struct PortfolioBuilder {
     pub constraints: Option<Vec<(f64, f64)>>,
     pub tickers_data: Option<Vec<KLINE>>,
     pub benchmark_data: Option<KLINE>,
-
 }
 
 impl Default for PortfolioBuilder {
@@ -148,7 +147,7 @@ impl PortfolioBuilder {
 ///     let ticker_symbols = Vec::from(["NVDA", "BRK-A", "AAPL", "MSFT", "BTC-USD"]);
 ///     let constraints = Some(vec![(0.0, 1.0); ticker_symbols.len()]);
 ///     let portfolio = Portfolio::builder().ticker_symbols(ticker_symbols)
-///                                             .benchmark_symbol("^GSPC")
+///                                             .benchmark_symbol("MSFT")
 ///                                             .start_date("2023-01-01")
 ///                                             .end_date("2023-12-31")
 ///                                             .interval(Interval::OneDay)

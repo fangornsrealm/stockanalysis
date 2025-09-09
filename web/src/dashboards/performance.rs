@@ -9,7 +9,7 @@ use crate::components::table::TableContainer;
 #[component]
 pub fn Performance() -> Element {
     let symbol = use_signal(|| "AAPL".to_string());
-    let benchmark_symbol = use_signal(|| "^GSPC".to_string());
+    let benchmark_symbol = use_signal(|| "MSFT".to_string());
     let mut start_date = use_signal(|| "2023-01-01".to_string());
     let mut end_date = use_signal(|| "2024-12-31".to_string());
     let mut interval = use_signal(|| "1d".to_string());

@@ -21,7 +21,7 @@ pub fn Screener() -> Element {
     let offset = use_signal(|| 0);
     let size = use_signal(|| 50);
     let active_tab = use_signal(|| 1);
-    let benchmark_symbol = use_signal(|| "^GSPC".to_string());
+    let benchmark_symbol = use_signal(|| "MSFT".to_string());
     let start_date = use_signal(|| (Local::now() - Duration::days(365)).format("%Y-%m-%d").to_string());
     let end_date = use_signal(|| Local::now().format("%Y-%m-%d").to_string());
     let risk_free_rate = use_signal(|| 0.02);

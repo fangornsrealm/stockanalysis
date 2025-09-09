@@ -33,7 +33,7 @@ use crate::ffi::rust_plot_to_py_plot;
 /// import finalytics
 ///
 /// ticker = finalytics.Ticker(symbol="AAPL", start_date="2020-01-01", end_date="2021-01-01", interval="1d",
-/// benchmark_symbol="^GSPC", confidence_level=0.95, risk_free_rate=0.02)
+/// benchmark_symbol="MSFT", confidence_level=0.95, risk_free_rate=0.02)
 /// ```
 #[pyclass]
 #[pyo3(name = "Ticker")]
@@ -63,7 +63,7 @@ impl PyTicker {
                 .start_date(&start_date.unwrap_or(default_start))
                 .end_date(&end_date.unwrap_or(default_end))
                 .interval(interval)
-                .benchmark_symbol(&benchmark_symbol.unwrap_or("^GSPC".to_string()))
+                .benchmark_symbol(&benchmark_symbol.unwrap_or("MSFT".to_string()))
                 .confidence_level(confidence_level.unwrap_or(0.95))
                 .risk_free_rate(risk_free_rate.unwrap_or(0.02))
                 .ticker_data(ticker_data)

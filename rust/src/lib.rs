@@ -63,7 +63,7 @@
 //!             .start_date("2023-01-01")
 //!             .end_date("2024-12-31")
 //!             .interval(Interval::OneDay)
-//!             .benchmark_symbol("^GSPC")
+//!             .benchmark_symbol("MSFT")
 //!             .confidence_level(0.95)
 //!             .risk_free_rate(0.02)
 //!             .build();
@@ -192,7 +192,7 @@ mod tests {
             .start_date("2023-01-01")
             .end_date("2024-12-31")
             .interval(Interval::OneDay)
-            .benchmark_symbol("^GSPC")
+            .benchmark_symbol("MSFT")
             .confidence_level(0.95)
             .risk_free_rate(0.02)
             .build();

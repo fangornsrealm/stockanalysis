@@ -28,7 +28,7 @@ impl TickersBuilder {
             start_date: String::new(),
             end_date: String::new(),
             interval: Interval::OneDay,
-            benchmark_symbol: String::from("^GSPC"),
+            benchmark_symbol: String::from("MSFT"),
             confidence_level: 0.95,
             risk_free_rate: 0.0,
             tickers_data: None,
@@ -80,7 +80,6 @@ impl TickersBuilder {
         self.benchmark_data = benchmark_data;
         self
     }
-
     pub fn build(self) -> Tickers {
         let benchmark_ticker = if let Some(benchmark_data) = self.benchmark_data.clone() {
             Ticker::builder()
@@ -98,7 +97,6 @@ impl TickersBuilder {
                 .risk_free_rate(self.risk_free_rate)
                 .build()
         };
-
 
         let tickers = if let Some(tickers_data) = self.tickers_data.clone() {
             tickers_data.clone().into_iter().map(|x|
@@ -121,7 +119,6 @@ impl TickersBuilder {
                     .build()
             ).collect::<Vec<Ticker>>()
         };
-
         Tickers {
             tickers: tickers.clone(),
             start_date: tickers[0].start_date.clone(),
@@ -132,7 +129,7 @@ impl TickersBuilder {
             risk_free_rate: self.risk_free_rate,
             tickers_data: self.tickers_data,
             benchmark_data: self.benchmark_data,
-            benchmark_ticker
+            benchmark_ticker,
         }
     }
 
@@ -177,7 +174,7 @@ impl Tickers {
         Ok(Portfolio {
             tickers: self.clone(),
             performance_stats,
-        })
+      })
     }
 }
 
@@ -207,7 +204,7 @@ impl Tickers {
 ///        .start_date("2023-01-01")
 ///        .end_date("2023-12-31")
 ///        .interval(Interval::OneDay)
-///        .benchmark_symbol("^GSPC")
+///        .benchmark_symbol("MSFT")
 ///        .confidence_level(0.95)
 ///        .risk_free_rate(0.02)
 ///        .build();

@@ -38,7 +38,7 @@ use crate::portfolio::PyPortfolio;
 ///                             start_date="2020-01-01",
 ///                             end_date="2021-01-01",
 ///                             interval="1d",
-///                             benchmark_symbol="^GSPC",
+///                             benchmark_symbol="MSFT",
 ///                             confidence_level=0.95,
 ///                             risk_free_rate=0.02)
 /// ```
@@ -75,7 +75,7 @@ impl PyTickers {
                 .start_date(&start_date.unwrap_or(default_start))
                 .end_date(&end_date.unwrap_or(default_end))
                 .interval(interval)
-                .benchmark_symbol(&benchmark_symbol.unwrap_or("^GSPC".to_string()))
+                .benchmark_symbol(&benchmark_symbol.unwrap_or("MSFT".to_string()))
                 .confidence_level(confidence_level.unwrap_or(0.95))
                 .risk_free_rate(risk_free_rate.unwrap_or(0.02))
                 .tickers_data(tickers_data)

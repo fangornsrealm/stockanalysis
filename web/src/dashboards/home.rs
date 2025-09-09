@@ -351,7 +351,7 @@ pub fn get_code_examples(category: String) -> String {
                            .start_date("2023-01-01")
                            .end_date("2024-12-31")
                            .interval(Interval::OneDay)
-                           .benchmark_symbol("^GSPC")
+                           .benchmark_symbol("MSFT")
                            .confidence_level(0.95)
                            .risk_free_rate(0.02)
                            .build();
@@ -371,7 +371,7 @@ pub fn get_code_examples(category: String) -> String {
                     start_date="2023-01-01",
                     end_date="2024-12-31",
                     interval="1d",
-                    benchmark="^GSPC",
+                    benchmark="MSFT",
                     confidence_level=0.95,
                     risk_free_rate=0.02)
 
@@ -393,7 +393,7 @@ pub fn get_code_examples(category: String) -> String {
         // Construct Portfolio Object
         let portfolio = Portfolio::builder()
                            .ticker_symbols(ticker_symbols)
-                           .benchmark_symbol("^GSPC")
+                           .benchmark_symbol("MSFT")
                            .start_date("2023-01-01")
                            .end_date("2024-12-31")
                            .interval(Interval::OneDay)
@@ -418,7 +418,7 @@ pub fn get_code_examples(category: String) -> String {
 
     // Construct Portfolio Object
     portfolio = Portfolio(symbols=symbols,
-                        benchmark_symbol="^GSPC",
+                        benchmark_symbol="MSFT",
                         start_date="2023-01-01",
                         end_date="2024-12-31",
                         interval="1d",

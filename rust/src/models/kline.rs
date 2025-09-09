@@ -48,7 +48,7 @@ pub struct IntervalDays {
 ///     // Method 1: Load from CSV files
 ///     let aapl_csv = KLINE::from_csv("AAPL", "../examples/datasets/aapl.csv")?;
 ///     let goog_csv = KLINE::from_csv("GOOG", "../examples/datasets/goog.csv")?;
-///     let gspc_csv = KLINE::from_csv("^GSPC", "../examples/datasets/gspc.csv")?;
+///     let gspc_csv = KLINE::from_csv("MSFT", "../examples/datasets/gspc.csv")?;
 ///
 ///     // Method 2: Load from JSON files
 ///     let msft_json = KLINE::from_json("MSFT", "../examples/datasets/msft.json")?;

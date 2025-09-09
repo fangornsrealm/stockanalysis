@@ -128,7 +128,7 @@ use crate::prelude::{DataTable, DataTableDisplay, DataTableFormat, QuoteType, Ti
 pub struct Screener {
     pub quote_type: QuoteType,
     pub symbols: Vec<String>,
-    pub result: DataFrame
+    pub result: DataFrame,
 }
 
 impl Screener {

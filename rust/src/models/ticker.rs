@@ -26,11 +26,11 @@ impl TickerBuilder {
             start_date: String::new(),
             end_date: String::new(),
             interval: Interval::OneDay,
-            benchmark_symbol: String::from("^GSPC"),
+            benchmark_symbol: String::from("MSFT"),
             confidence_level: 0.95,
             risk_free_rate: 0.0,
             ticker_data: None,
-            benchmark_data: None
+            benchmark_data: None,
         }
     }
 
@@ -98,7 +98,6 @@ impl TickerBuilder {
         } else {
             (self.benchmark_symbol.clone(), None)
         };
-
         let benchmark_ticker = Ticker {
                 ticker: benchmark_symbol.clone(),
                 start_date: start_date.clone(),
@@ -109,7 +108,7 @@ impl TickerBuilder {
                 risk_free_rate: self.risk_free_rate,
                 ticker_data: benchmark_data.clone(),
                 benchmark_data: None,
-                benchmark_ticker: None
+                benchmark_ticker: None,
             };
 
         Ticker {
@@ -122,7 +121,7 @@ impl TickerBuilder {
             risk_free_rate: self.risk_free_rate,
             ticker_data: self.ticker_data,
             benchmark_data,
-            benchmark_ticker: Some(benchmark_ticker.into())
+            benchmark_ticker: Some(benchmark_ticker.into()),
         }
     }
 }
@@ -154,7 +153,7 @@ impl TickerBuilder {
 ///                             .start_date("2023-01-01")
 ///                             .end_date("2023-12-31")
 ///                             .interval(Interval::OneDay)
-///                             .benchmark_symbol("^GSPC")
+///                             .benchmark_symbol("MSFT")
 ///                             .confidence_level(0.95)
 ///                             .risk_free_rate(0.02)
 ///                             .build();
@@ -181,7 +180,7 @@ pub struct Ticker {
     pub risk_free_rate: f64,
     pub ticker_data: Option<KLINE>,
     pub benchmark_data: Option<KLINE>,
-    pub benchmark_ticker: Option<Box<Ticker>>
+    pub benchmark_ticker: Option<Box<Ticker>>,
 }
 
 impl  Ticker {

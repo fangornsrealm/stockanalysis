@@ -19,7 +19,7 @@ pub fn portfolio() -> Element {
         Err(_) => use_signal(|| "AAPL,ADBE,AMD,ARM,BNP,BYD,DELL,ENR,GOOGL,GTLB,HPE,MSFT,MU,NVDA,RHM,SMCI,META,DSY,IBM,BIDU,SAP,OKTA,NET,OVH,IFX,INTC,NOW,YSN,SSTK,VRNS".to_string()),
     };
     //let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
-    let mut benchmark_symbol = use_signal(|| "^GSPC".to_string());
+    let mut benchmark_symbol = use_signal(|| "MSFT".to_string());
     let mut start_date = use_signal(|| "2025-07-01".to_string());
     let mut end_date = use_signal(|| "2025-08-31".to_string());
     let mut interval = use_signal(|| "1d".to_string());
@@ -37,7 +37,6 @@ pub fn portfolio() -> Element {
     info!("risk_free: {:?}", risk_free_rate());
     info!("objective: {:?}", objective_function());
     info!("active_tab: {:?}", active_tab());
-
     let mut chart = use_server_future(move || async move {
         match crate::server::get_portfolio_charts(
             symbols()
@@ -376,7 +375,7 @@ pub fn screener() -> Element {
     let offset = use_signal(|| 0);
     let size = use_signal(|| 50);
     let active_tab = use_signal(|| 1);
-    let benchmark_symbol = use_signal(|| "^GSPC".to_string());
+    let benchmark_symbol = use_signal(|| "MSFT".to_string());
     let start_date = use_signal(|| (Local::now() - Duration::days(365)).format("%Y-%m-%d").to_string());
     let end_date = use_signal(|| Local::now().format("%Y-%m-%d").to_string());
     let risk_free_rate = use_signal(|| 0.02);
@@ -398,7 +397,9 @@ pub fn screener() -> Element {
     info!("objective_function: {:?}", objective_function());
 
     // Fetch screener data using server function
-    let screener_data = use_server_future(move || async move {
+    
+    let screener_data = use_server_future(move || {
+        async move {
         let quote_type = quote_type.read().to_string();
         let filters = filters.read().clone();
         let active_tab = active_tab.read().to_owned();
@@ -424,7 +425,7 @@ pub fn screener() -> Element {
                     sort_field(),
                     sort_descending(),
                     offset(),
-                    size()
+                    size(),
                 ).await;
 
                 if let Ok(symbols) = symbols {
@@ -449,7 +450,7 @@ pub fn screener() -> Element {
                     sort_field(),
                     sort_descending(),
                     offset(),
-                    size()
+                    size(),
                 ).await;
 
                 if let Ok(symbols) = symbols {
@@ -471,7 +472,7 @@ pub fn screener() -> Element {
             _ => "".to_string(),
         };
         data
-    })?;
+    }})?;
 
     rsx! {
         div {
@@ -1294,7 +1295,7 @@ pub fn ScreenerTickersForm(
 #[component]
 pub fn performance() -> Element {
     let symbol = use_signal(|| "AAPL".to_string());
-    let benchmark_symbol = use_signal(|| "^GSPC".to_string());
+    let benchmark_symbol = use_signal(|| "MSFT".to_string());
     let mut start_date = use_signal(|| "2023-01-01".to_string());
     let mut end_date = use_signal(|| "2024-12-31".to_string());
     let mut interval = use_signal(|| "1d".to_string());

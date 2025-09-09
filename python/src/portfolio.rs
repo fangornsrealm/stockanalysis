@@ -37,7 +37,7 @@ use crate::ffi::rust_plot_to_py_plot;
 /// import finalytics
 ///
 /// portfolio = finalytics.Portfolio(ticker_symbols = ["AAPL", "GOOG", "MSFT", "ZN=F"],
-///                                  benchmark_symbol = "^GSPC",
+///                                  benchmark_symbol = "MSFT",
 ///                                  start_date = "2020-01-01",
 ///                                  end_date = "2021-01-01",
 ///                                  interval = "1d",
@@ -80,7 +80,7 @@ impl PyPortfolio {
             let portfolio = tokio::runtime::Runtime::new().unwrap().block_on(
                 Portfolio::builder()
                     .ticker_symbols(ticker_symbols)
-                    .benchmark_symbol(&benchmark_symbol.unwrap_or("^GSPC".to_string()))
+                    .benchmark_symbol(&benchmark_symbol.unwrap_or("MSFT".to_string()))
                     .start_date(&start_date.unwrap_or(default_start))
                     .end_date(&end_date.unwrap_or(default_end))
                     .interval(interval)
