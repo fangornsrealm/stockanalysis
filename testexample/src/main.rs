@@ -26,6 +26,131 @@ pub fn osstr_to_string(osstr: std::ffi::OsString) -> String {
     String::new()
 }
 
+pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), Box<dyn Error>> {
+
+    let testportfolio = portfolio.clone();
+    let opt_chart = 
+        match testportfolio {
+        Ok(portfolio) => {
+            let chart = 
+                portfolio.optimization_chart(None, None).map_err(|e| format!("Optimization Chart error: {e}")).unwrap().to_html();
+
+            Ok(chart)
+        },
+        Err(e) => {
+            log::error!("Failed to get portfolio: {e}");
+            Err(e)
+        }
+    };
+    match opt_chart {
+        Ok(chart) => std::fs::write("opt_chart.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let perf_chart = 
+        match testportfolio {
+        Ok(portfolio) => {
+            let chart = 
+                portfolio.performance_chart(None, None).map_err(|e| format!("Performance Chart error: {e}")).unwrap().to_html();
+
+            Ok(chart)
+        }
+        Err(e) => {
+            log::error!("Failed to get portfolio: {e}");
+            Err(e)
+        }
+    };
+    match perf_chart {
+        Ok(chart) => std::fs::write("perf_chart.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let perf_stats_chart = 
+        match testportfolio {
+        Ok(portfolio) => {
+            let chart = 
+                portfolio.performance_stats_table().await.map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap();            Ok(chart)
+        }
+        Err(e) => {
+            log::error!("Failed to get portfolio: {e}");
+            Err(e)
+        }
+    };
+    match perf_stats_chart {
+        Ok(chart) => std::fs::write("perf_stats_chart.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let returns_table = 
+        match testportfolio {
+        Ok(portfolio) => {
+            let chart = 
+                portfolio.returns_table().map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html().unwrap();            Ok(chart)
+        }
+        Err(e) => {
+            log::error!("Failed to get portfolio: {e}");
+            Err(e)
+        }
+    };
+    match returns_table {
+        Ok(chart) => std::fs::write("returns_table.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let returns_chart = 
+        match testportfolio {
+        Ok(portfolio) => {
+            let chart = 
+                portfolio.returns_chart(None, None).map_err(|e| format!("Returns Chart error: {e}")).unwrap().to_html();
+            Ok(chart)
+        }
+        Err(e) => {
+            log::error!("Failed to get portfolio: {e}");
+            Err(e)
+        }
+    };
+    match returns_chart {
+        Ok(chart) => std::fs::write("returns_chart.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let returns_matrix = 
+        match testportfolio {
+        Ok(portfolio) => {
+            let chart = 
+                portfolio.returns_matrix(None, None).map_err(|e| format!("Returns Matrix error: {e}")).unwrap().to_html();
+            Ok(chart)
+        }
+        Err(e) => {
+            log::error!("Failed to get portfolio: {e}");
+            Err(e)
+        }
+    };
+    match returns_matrix {
+        Ok(chart) => std::fs::write("returns_matrix.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let logfile = "stock_analysis.txt".to_string();
@@ -44,12 +169,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     ])
     .unwrap();
-
-    let active_tab: usize = 1;
-    let symbols = vec![ "AAPL", "ADBE", "AMD", "ARM", "BNP", "BYD", "DELL", "ENR", "GOOGL", "GTLB", "HPE", "MSFT", "MU", "NVDA", "RHM", "SMCI", "META", "DSY", "IBM", "BIDU", "SAP", "OKTA", "NET", "OVH", "IFX", "INTC", "NOW", "YSN", "SSTK", "VRNS" ];
-    let portfolio = Portfolio::builder()
-            .ticker_symbols(symbols)
-            .benchmark_symbol("^GSPC")
+    
+    let sql_connection = finalytics::data::sql::connect();
+    let symbolsstrings = finalytics::data::sql::active_symbols(sql_connection);
+    let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
+    let portfolio: Result<Portfolio, String> = Portfolio::builder()
+            .ticker_symbols(symbols.clone())
+            .benchmark_symbol("MSFT")
             .start_date("2025-08-01")
             .end_date("2025-08-31")
             .interval(Interval::OneDay)
@@ -59,30 +185,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .build()
             .await
             .map_err(|e| format!("PortfolioBuilder error: {e}"));
-
-    let chart = 
-        match portfolio {
-        Ok(portfolio) => {
-            let chart = match active_tab {
-                1 => portfolio.optimization_chart(None, None).map_err(|e| format!("Optimization Chart error: {e}")).unwrap().to_html(),
-                2 => portfolio.performance_chart(None, None).map_err(|e| format!("Performance Chart error: {e}")).unwrap().to_html(),
-                3 => portfolio.performance_stats_table().await.map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap(),
-                4 => portfolio.returns_table().map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html().unwrap(),
-                5 => portfolio.returns_chart(None, None).map_err(|e| format!("Returns Chart error: {e}")).unwrap().to_html(),
-                6 => portfolio.returns_matrix(None, None).map_err(|e| format!("Returns Matrix error: {e}")).unwrap().to_html(),
-                _ => "".to_string(),
-            };
-
-            Ok(chart)
-        }
-        Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
-            Err(e)
-        }
-    };
-    if chart.is_ok() {
-        print!("{}", chart.unwrap());
-    }
+    test_portfolio(portfolio).await.unwrap();
     let start_date = match chrono::NaiveDateTime::parse_from_str("2025-08-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
         Ok(d) => d,
         Err(error) => {
@@ -97,8 +200,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             panic!("Ending the program as this is required!");
         }
     };
-    let symbols = vec![ "AAPL", "ADBE", "AMD", "ARM", "BNP", "BYD", "DELL", "ENR", "GOOGL", "GTLB", "HPE", "MSFT", "MU", "NVDA", "RHM", "SMCI", "META", "DSY", "IBM", "BIDU", "SAP", "OKTA", "NET", "OVH", "IFX", "INTC", "NOW", "YSN", "SSTK", "VRNS" ];
-    
+    //let symbols = vec![ "AAPL", "ADBE", "AMD", "ARM", "BNP", "BYD", "DELL", "ENR", "GOOGL", "GTLB", "HPE", "MSFT", "MU", "NVDA", "RHM", "SMCI", "META", "DSY", "IBM", "BIDU", "SAP", "OKTA", "NET", "OVH", "IFX", "INTC", "NOW", "YSN", "SSTK", "VRNS" ];
+    /*
     let mut tickers = Vec::new();
     let start_date = "2025-08-01".to_string();
     let end_date = chrono::Utc::now().date_naive().to_string();
@@ -115,6 +218,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let df = ticker.get_chart().await.inspect(|x| println!("original: {x}")).expect("extraction of data failed.");
         let table = df.to_datatable("ohlcv", true, DataTableFormat::Number);
         let html = table.to_html()?;
+        let mut file_name = stock_symbol.clone();
+        file_name.extend(".html".chars());
+        std::fs::write(&file_name, &html).expect("Should be able to write to file");
         //println!("{}", html);
         tickers.push(ticker);
         //table.show()?;
@@ -171,5 +277,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //ticker.get_financials(statement_type, frequency)
 
     }
+    */
     Ok(())
 }
