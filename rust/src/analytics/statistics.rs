@@ -138,6 +138,41 @@ pub fn ols_regression(x_series: &Series, y_series: &Series) -> (f64, f64) {
     let x_data= x_series.f64().unwrap().to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
     let y_data = y_series.f64().unwrap().to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
 
+    if x_data.len() == 0 || y_data.len() == 0 {
+        return (0.0, 0.0);
+    } else if x_data.len() > y_data.len() {
+        let mut x_new = Vec::new();
+        for i in 0..y_data.len() {
+            x_new.push(x_data[i]);
+        }
+        // Create a matrix from x_data
+        let x_matrix = DenseMatrix::from_column(&x_new);
+
+        // Create a Linear Regression model
+        let model = LinearRegression::fit(&x_matrix, &y_data, Default::default()).unwrap();
+
+        // Get the intercept and slope
+        let intercept = *model.intercept();
+        let slope = *model.coefficients().get((0,0));
+
+        return (intercept, slope);
+    } else if x_data.len() < y_data.len() {
+        let mut y_new = Vec::new();
+        for i in 0..x_data.len() {
+            y_new.push(y_data[i]);
+        }
+        // Create a matrix from x_data
+        let x_matrix = DenseMatrix::from_column(&x_data);
+
+        // Create a Linear Regression model
+        let model = LinearRegression::fit(&x_matrix, &y_new, Default::default()).unwrap();
+
+        // Get the intercept and slope
+        let intercept = *model.intercept();
+        let slope = *model.coefficients().get((0,0));
+
+        return (intercept, slope);
+    } 
     // Create a matrix from x_data
     let x_matrix = DenseMatrix::from_column(&x_data);
 
