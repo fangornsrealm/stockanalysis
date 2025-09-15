@@ -10,6 +10,7 @@ pub trait TickerData {
     fn get_quote(&self) -> impl std::future::Future<Output = Result<Quote, Box<dyn Error>>>;
     fn get_ticker_stats(&self) -> impl std::future::Future<Output = Result<TickerSummaryStats, Box<dyn Error>>>;
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
+    fn get_chart_daily(&self, start_date: chrono::DateTime<chrono::Utc>, end_date: chrono::DateTime<chrono::Utc>) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_options(&self) -> impl std::future::Future<Output = Result<Options, Box<dyn Error>>>;
     fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn get_news(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
@@ -28,6 +29,20 @@ impl TickerData for Ticker {
 
     /// Returns the Ticker OHLCV Data from database or updates them if already loaded
     async fn get_chart(&self) -> Result<DataFrame, Box<dyn Error>> {
+        if let Some(ticker_data) = &self.ticker_data {
+            ticker_data.clone().to_dataframe()
+            // deactivated until there is a subscription for live data Germany
+            //super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
+        } else {
+            let sql_connection = crate::data::sql::connect();
+            let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?;
+            let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?;
+            super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date.into(), end_date.into())
+        }
+    }
+
+    /// Returns the Ticker OHLCV Data from database or updates them if already loaded
+    async fn get_chart_daily(&self, start_date: chrono::DateTime<chrono::Utc>, end_date: chrono::DateTime<chrono::Utc>) -> Result<DataFrame, Box<dyn Error>> {
         
         if let Some(ticker_data) = &self.ticker_data {
             ticker_data.clone().to_dataframe()
@@ -35,9 +50,7 @@ impl TickerData for Ticker {
             //super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
         } else {
             let sql_connection = crate::data::sql::connect();
-            let start_date = chrono::NaiveDateTime::parse_from_str("1970-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")?;
-            let end_date = chrono::Utc::now().naive_utc();
-            super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date)
+            super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date)
         }
     }
 
