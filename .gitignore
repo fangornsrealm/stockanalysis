@@ -1,1 +1,5 @@
 /target
+/testexample/*.html
+/testexample/*.txt
+*.html
+*.txt

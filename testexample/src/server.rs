@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use std::str::FromStr;
 #[cfg(feature = "server")]
-use finalytics::prelude::*;
+use stockanalysis::prelude::*;
 #[cfg(feature = "server")]
 use syntect::highlighting::ThemeSet;
 #[cfg(feature = "server")]
@@ -22,7 +22,7 @@ pub static ALL_SYMBOLS_DATALIST: Lazy<Mutex<HashMap<String, String>>> = Lazy::ne
 });
 
 #[cfg(feature = "server")]
-use finalytics::data::yahoo::screeners::screeners::FieldMetadata;
+use stockanalysis::data::yahoo::screeners::screeners::FieldMetadata;
 
 #[cfg(not(feature = "server"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -112,7 +112,7 @@ pub async fn get_ticker_charts(
     risk_free_rate: f64,
     report_type: String,
     frequency: String,
-    active_tab: usize,
+    active_tab: usize
 ) -> Result<String, ServerFnError<String>> {
     let chart = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Handle::current();
@@ -208,7 +208,7 @@ pub async fn get_screener_data(
     sort_descending: bool,
     offset: usize,
     size: usize,
-    active_tab: usize,
+    active_tab: usize
 ) -> Result<String, ServerFnError<String>> {
     let screener = tokio::task::spawn_blocking(move || {
         let quote_type = QuoteType::from_str(&quote_type).unwrap();
@@ -329,7 +329,7 @@ pub async fn get_screener_performance(
     start_date: String,
     end_date: String,
     benchmark_symbol: String,
-    risk_free_rate: f64,
+    risk_free_rate: f64
 ) -> Result<String, ServerFnError<String>> {
     let chart = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Handle::current();

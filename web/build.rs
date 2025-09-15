@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::collections::HashMap;
-use finalytics::prelude::*;
+use stockanalysis::prelude::*;
 use yahoo_finance_symbols::keys::{AssetClass, Category, Exchange};
 use yahoo_finance_symbols::get_symbols;
 

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use std::str::FromStr;
 #[cfg(feature = "server")]
-use finalytics::prelude::*;
+use stockanalysis::prelude::*;
 #[cfg(feature = "server")]
 use syntect::highlighting::ThemeSet;
 #[cfg(feature = "server")]
@@ -22,7 +22,7 @@ pub static ALL_SYMBOLS_DATALIST: Lazy<Mutex<HashMap<String, String>>> = Lazy::ne
 });
 
 #[cfg(feature = "server")]
-use finalytics::data::yahoo::screeners::screeners::FieldMetadata;
+use stockanalysis::data::yahoo::screeners::screeners::FieldMetadata;
 
 #[cfg(not(feature = "server"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

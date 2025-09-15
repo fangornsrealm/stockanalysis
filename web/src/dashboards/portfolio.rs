@@ -14,8 +14,8 @@ pub fn Portfolio() -> Element {
             use_signal(|| symbols)
         }
         Err(_) => {
-            let sql_connection = finalytics::data::sql::connect();
-            let symbolsstrings = finalytics::data::sql::active_symbols(sql_connection);
+            let sql_connection = stockanalysis::data::sql::connect();
+            let symbolsstrings = stockanalysis::data::sql::active_symbols(sql_connection);
             let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
 
             use_signal(|| symbols.join(",").to_string())

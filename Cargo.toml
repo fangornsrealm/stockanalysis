@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "rust",
-    "python",
-    "web", "testexample",
+    "web",
+    "testexample",
 ]
 
 exclude = ["web"]
