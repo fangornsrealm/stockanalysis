@@ -34,29 +34,34 @@ impl TickerPerformance for Ticker {
     ///
     /// * `TickerPerformanceStats` struct
     async fn performance_stats(&self) -> Result<TickerPerformanceStats, Box<dyn Error>> {
-        let security_df = self.roc(1, Some(Column::AdjClose)).await?;
+        let security_df = match self.roc(1, Some(Column::AdjClose)).await {
+            Ok(df) => df,
+            Err(error) => return Err(error),
+        };
         let security_prices = security_df.column(Column::AdjClose.as_str())?.as_series().unwrap();
+        let benchmark_returns = self.benchmark_ticker.clone().unwrap().roc(1, Some(Column::AdjClose)).await?;
+        // database timestamps are seconds apart. Comparison does not make sense for daily analysis.
         let security_returns = DataFrame::new(vec![
             security_df.column("timestamp")?.clone(),
             security_df.column("roc-1")?.clone().with_name(self.ticker.as_str().into())
         ])?;
-        let benchmark_returns = self.benchmark_ticker.clone().unwrap().roc(1, Some(Column::AdjClose)).await?;
+        /*
         let benchmark_returns = security_returns.join(
             &benchmark_returns,
             ["timestamp"],
             ["timestamp"],
             JoinArgs::new(JoinType::Left),
             None
-        )?;
+        )?; */
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
-        let dates_array = benchmark_returns.column("timestamp")?.datetime()?
+        let dates_array = benchmark_returns.column("timestamp")?.i64()?
             .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
             .naive_local()).collect::<Vec<NaiveDateTime>>();
         let interval = interval_days(dates_array.clone());
         let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        let security_returns = benchmark_returns.column(&self.ticker)?.as_series().unwrap();
+        let security_returns = security_returns.column(&self.ticker)?.as_series().unwrap();
         let benchmark_returns = benchmark_returns.column("roc-1")?.as_series().unwrap();
 
         let performance_stats = PerformanceStats::compute_stats(
@@ -133,23 +138,35 @@ impl PortfolioPerformanceStats {
         let _ = portfolio_returns.drop_in_place("timestamp")?;
         let _=  portfolio_returns.insert_column(0, Series::new("timestamp".into(), portfolio_dates))?;
 
-        let benchmark_returns = benchmark_ticker.roc(1, Some(Column::AdjClose)).await?;
-        let benchmark_returns =  portfolio_returns.join(
+        let benchmark_returns_timestamp = benchmark_ticker.roc(1, Some(Column::AdjClose)).await?;
+        let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(benchmark_returns_timestamp.clone()) {
+            Ok(df) => df,
+            Err(error) => {
+                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let roc = benchmark_returns_timestamp.column("roc-1")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let dates_array = datetimes.clone();
+        let benchmark_returns = df!(
+            "timestamp" => datetimes,
+            "roc-1" => roc,
+        )?;
+        /*
+        let benchmark_returns_joined =  portfolio_returns.join(
             &benchmark_returns,
             ["timestamp"],
             ["timestamp"],
             JoinArgs::new(JoinType::Left),
             None
-        )?;
+        )?; */
 
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
-        let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Zero)?;
-        let dates_array = benchmark_returns.column("timestamp")?.datetime()?
-            .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
-            .naive_local()).collect::<Vec<NaiveDateTime>>();
+        let benchmark_returns_zeroed = benchmark_returns.fill_null(FillNullStrategy::Zero)?;
         let interval = interval_days(dates_array.clone());
         let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        let benchmark_returns = benchmark_returns.column("roc-1")?.as_series().unwrap();
+        //let column_names = benchmark_returns_zeroed.get_column_names().iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let benchmark_returns_roc = benchmark_returns_zeroed.column("roc-1")?.as_series().unwrap();
 
         let _ = portfolio_returns.drop_in_place("timestamp")?;
 
@@ -187,7 +204,7 @@ impl PortfolioPerformanceStats {
         let daily_portfolio_returns = daily_portfolio_returns(&optimal_weights, &portfolio_returns);
 
         let performance_stats = PerformanceStats::compute_stats(
-            daily_portfolio_returns.clone(), benchmark_returns.clone(),
+            daily_portfolio_returns.clone(), benchmark_returns_roc.clone(),
             risk_free_rate, confidence_level, interval)?;
 
 
@@ -201,7 +218,7 @@ impl PortfolioPerformanceStats {
             confidence_level,
             risk_free_rate,
             portfolio_returns: portfolio_returns.clone(),
-            benchmark_returns: benchmark_returns.clone(),
+            benchmark_returns: benchmark_returns_roc.clone(),
             objective_function,
             optimization_method: "Simple Gradient Descent".to_string(),
             constraints: constraints.clone(),
