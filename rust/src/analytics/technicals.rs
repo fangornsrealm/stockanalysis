@@ -1,10 +1,10 @@
 use ta::{DataItem, Next};
 use ta::indicators::*;
 use std::error::Error;
-use chrono::{DateTime, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc, Months};
 use polars::prelude::*;
-use crate::data::ticker::TickerData;
 use crate::models::ticker::Ticker;
+use crate::data::ticker::TickerData;
 
 /// Enum of OHLCV DataFrame Columns
 pub enum Column {
@@ -76,7 +76,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Simple Moving Average Indicator
     async fn sma(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let mut sma = SimpleMovingAverage::new(period).unwrap();
         let col_str = match col {
             Some(col) => col.as_str(),
@@ -104,7 +106,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Exponential Moving Average Indicator
     async fn ema(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let mut ema = ExponentialMovingAverage::new(period).unwrap();
         let col_str = match col {
             Some(col) => col.as_str(),
@@ -132,7 +136,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Relative Strength Index Indicator
     async fn rsi(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let mut rsi = RelativeStrengthIndex::new(period).unwrap();
         let col_str = match col {
             Some(col) => col.as_str(),
@@ -162,7 +168,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Moving Average Convergence Divergence Indicators
     async fn macd(&self, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -196,7 +204,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Percentage Price Oscillator Indicators
     async fn ppo(&self, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -227,7 +237,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the OHLCV data with the Money Flow Index Indicator
     async fn mfi(&self, period: usize) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let mut mfi = MoneyFlowIndex::new(period).unwrap();
         let mut timestamp = ohlcv.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
             DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
@@ -287,7 +299,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with Bollinger Bands
     async fn bb(&self, period: usize, std_dev: f64, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -319,7 +333,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Fast Stochastic Oscillator
     async fn fs(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -348,7 +364,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with the Slow Stochastic Oscillator
     async fn ss(&self, stochastic_period: usize, ema_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -376,7 +394,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with rolling Standard Deviation
     async fn sd(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -404,7 +424,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with rolling Mean Absolute Deviation
     async fn mad(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -432,7 +454,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price data with rolling Maximum Values
     async fn max(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::High.as_str()
@@ -460,7 +484,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the ticker price date data with rolling Minimum Values
     async fn min(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Low.as_str()
@@ -487,7 +513,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the OHLCV data with the Average True Range Indicator
     async fn atr(&self, period: usize) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let mut atr = AverageTrueRange::new(period).unwrap();
         let col = format!("atr-{period}");
         let mut timestamp = ohlcv.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
@@ -546,7 +574,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the OHLCV data with the Rate of Change Indicator
     async fn roc(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::AdjClose.as_str()
@@ -569,7 +599,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// * `DataFrame` of the OHLCV data with the On Balance Volume Indicator
     async fn obv(&self) -> Result<DataFrame, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let mut obv = OnBalanceVolume::new();
         let mut timestamp = ohlcv.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
             DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
