@@ -1,6 +1,6 @@
 use std::error::Error;
 use polars::prelude::*;
-use chrono::{DateTime, NaiveDateTime};
+use chrono::{DateTime, Utc, Months};
 use plotly::common::{AxisSide, Fill, Line, LineShape, Mode, Title};
 use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder, SelectorButton, SelectorStep, StepMode};
@@ -52,8 +52,10 @@ impl TickerCharts for Ticker {
     ///
     /// * `DataTable` - Interactive Table Chart struct
     async fn ohlcv_table(&self) -> Result<DataTable, Box<dyn Error>> {
-        let data = self.get_chart().await?;
-        let table = data.to_datatable("ohlcv", true, DataTableFormat::Number);
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
+        let table = ohlcv.to_datatable("ohlcv", true, DataTableFormat::Number);
         Ok(table)
     }
 
@@ -68,19 +70,26 @@ impl TickerCharts for Ticker {
     ///
     /// * `Plot` Plotly Chart struct
     async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
-        let data = self.get_chart().await?;
-        let x = data.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
-            DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
-        let x = x.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        let open = data.column("open")?.f64()?.to_vec()
+        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
+        let end_date = Utc::now();
+        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
+        let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
+            Ok(df) => df,
+            Err(error) => {
+                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let high = data.column("high")?.f64()?.to_vec()
+        let high = ohlcv.column("high")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let low = data.column("low")?.f64()?.to_vec()
+        let low = ohlcv.column("low")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let close = data.column("close")?.f64()?.to_vec()
+        let close = ohlcv.column("close")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let volume = data.column("volume")?.f64()?.to_vec()
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let rsi_df = self.rsi(14, None).await?;
         let rsi_values = rsi_df.column("rsi-14")?.f64()?.to_vec()
