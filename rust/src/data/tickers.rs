@@ -241,7 +241,6 @@ impl TickersData for Tickers {
 
     /// Compute the Returns for all tickers in the Tickers Struct
     async fn returns(&self) -> Result<DataFrame, Box<dyn Error>> {
-        let mut futures = Vec::new();
         let total_tickers = self.tickers.len();
         let pb = ProgressBar::new(total_tickers as u64);
         pb.set_style(
@@ -249,36 +248,33 @@ impl TickersData for Tickers {
                 .template("{msg} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
                 .progress_chars("#>-"),
         );
-
+        let mut results = Vec::new();
         for ticker in self.tickers.clone().into_iter() {
-            let fut = tokio::task::spawn(async move {
-                match ticker.performance_stats().await {
-                    Ok(stats) => {
-                        let date_series = Column::new("timestamp".into(), stats.dates_array);
-                        let returns_series = Column::new(ticker.ticker.as_str().into(), stats.security_returns);
-                        if let Ok(df) = DataFrame::new(vec![date_series, returns_series]) {
-                            Ok(df)
-                        } else {
-                            eprintln!("No Returns Data for {}", &ticker.ticker);
-                            Err(format!("No Returns Data for {}", &ticker.ticker))
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("No Returns Data for {}: {}", &ticker.ticker, e);
-                        Err(format!("No Returns Data for {}: {}", &ticker.ticker, e))
+            let fut = match ticker.performance_stats().await {
+                Ok(stats) => {
+                    let date_series = Column::new("timestamp".into(), stats.dates_array);
+                    let returns_series = Column::new(ticker.ticker.as_str().into(), stats.security_returns);
+                    if let Ok(df) = DataFrame::new(vec![date_series, returns_series]) {
+                        Ok(df)
+                    } else {
+                        eprintln!("No Returns Data for {}", &ticker.ticker);
+                        Err(format!("No Returns Data for {}", &ticker.ticker))
                     }
                 }
-            });
+                Err(e) => {
+                    eprintln!("No Returns Data for {}: {}", &ticker.ticker, e);
+                    Err(format!("No Returns Data for {}: {}", &ticker.ticker, e))
+                }
+            };
 
-            futures.push(fut);
+            results.push(fut);
         }
 
-        let results = join_all(futures).await;
         let mut joint_df = DataFrame::default();
 
         for result in results {
             match result {
-                Ok(Ok(df)) => {
+                Ok(df) => {
                     if joint_df.width() == 0 {
                         joint_df = df;
                     } else {
@@ -292,7 +288,6 @@ impl TickersData for Tickers {
                             )?;
                     }
                 }
-                Ok(Err(_)) => continue,
                 Err(e) => eprintln!("Error in task: {e}"),
             }
         }
@@ -306,7 +301,6 @@ impl TickersData for Tickers {
 
     /// Fetch the performance statistics for all tickers in the Tickers Struct
     async fn performance_stats(&self) -> Result<DataFrame, Box<dyn Error>> {
-        let mut futures = Vec::new();
         let total_tickers = self.tickers.len();
         let pb = ProgressBar::new(total_tickers as u64);
         pb.set_style(
@@ -314,32 +308,28 @@ impl TickersData for Tickers {
                 .template("{msg} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
                 .progress_chars("#>-"),
         );
-
+        let mut results = Vec::new();
         for ticker in self.tickers.clone().into_iter() {
-            let fut = tokio::task::spawn(async move {
-                match ticker.performance_stats().await {
-                    Ok(stats) => {
-                        Ok(stats)
-                    }
-                    Err(e) => {
-                        eprintln!("No Returns Data for {}: {}", &ticker.ticker, e);
-                        Err(format!("No Returns Data for {}: {}", &ticker.ticker, e))
-                    }
+            let retval = match ticker.performance_stats().await {
+                Ok(stats) => {
+                    Ok(stats)
                 }
-            });
+                Err(e) => {
+                    eprintln!("No Returns Data for {}: {}", &ticker.ticker, e);
+                    Err(format!("No Returns Data for {}: {}", &ticker.ticker, e))
+                }
+            };
 
-            futures.push(fut);
+            results.push(retval);
         }
 
-        let results = join_all(futures).await;
         let mut all_stats: Vec<TickerPerformanceStats> = Vec::new();
 
         for result in results {
             match result {
-                Ok(Ok(stats)) => {
+                Ok(stats) => {
                     all_stats.push(stats);
                 }
-                Ok(Err(_)) => continue,
                 Err(e) => eprintln!("Error in task: {e}"),
             }
         }
