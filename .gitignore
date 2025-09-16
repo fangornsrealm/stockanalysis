@@ -1,4 +1,5 @@
 /target
+/web2
 /testexample/*.html
 /testexample/*.txt
 *.html

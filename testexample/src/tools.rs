@@ -362,7 +362,6 @@ pub fn portfolio() -> Element {
     
 }
 
-#[component]
 pub fn screener() -> Element {
     // Initialize Signals with default values
     let quote_type = use_signal(|| "EQUITY".to_string());
@@ -1166,7 +1165,6 @@ pub fn ScreenerForm(
     }
 }
 
-
 #[component]
 pub fn ScreenerTickersForm(
     benchmark_symbol: Signal<String>,
@@ -1292,7 +1290,6 @@ pub fn ScreenerTickersForm(
     }
 }
 
-#[component]
 pub fn performance() -> Element {
     let symbol = use_signal(|| "AAPL".to_string());
     let benchmark_symbol = use_signal(|| "MSFT".to_string());
@@ -1574,7 +1571,6 @@ pub fn performance() -> Element {
     }
 }
 
-#[component]
 pub fn options(
     symbolstr: String,
 ) -> Element {
@@ -1724,7 +1720,6 @@ pub fn options(
     }
 }
 
-#[component]
 pub fn news(
     symbolstr: String,
 ) -> Element {
@@ -1902,7 +1897,6 @@ pub fn news(
     }
 }
 
-#[component]
 pub fn financials(
     symbolstr: String,
     start_date_str: String,

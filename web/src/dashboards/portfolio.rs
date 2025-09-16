@@ -40,7 +40,7 @@ pub fn Portfolio() -> Element {
     info!("risk_free: {:?}", risk_free_rate());
     info!("objective: {:?}", objective_function());
     info!("active_tab: {:?}", active_tab());
-    
+
     let mut chart = use_server_future(move || async move {
         match get_portfolio_charts(
             symbols()

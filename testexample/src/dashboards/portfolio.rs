@@ -13,7 +13,13 @@ pub fn Portfolio() -> Element {
             let symbols = arr.replace(" ", ",");
             use_signal(|| symbols)
         }
-        Err(_) => use_signal(|| "AAPL,ADBE,AMD,ARM,BNP,BYD,DELL,ENR,GOOGL,GTLB,HPE,MSFT,MU,NVDA,RHM,SMCI,META,DSY,IBM,BIDU,SAP,OKTA,NET,OVH,IFX,INTC,NOW,YSN,SSTK,VRNS".to_string()),
+        Err(_) => {
+            let sql_connection = stockanalysis::data::sql::connect();
+            let symbolsstrings = stockanalysis::data::sql::active_symbols(sql_connection);
+            let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
+
+            use_signal(|| symbols.join(",").to_string())
+        }
     };
     //let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
     let mut benchmark_symbol = use_signal(|| "MSFT".to_string());
@@ -34,7 +40,7 @@ pub fn Portfolio() -> Element {
     info!("risk_free: {:?}", risk_free_rate());
     info!("objective: {:?}", objective_function());
     info!("active_tab: {:?}", active_tab());
-
+    
     let mut chart = use_server_future(move || async move {
         match get_portfolio_charts(
             symbols()

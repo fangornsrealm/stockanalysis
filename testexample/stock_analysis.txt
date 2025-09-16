@@ -1,30 +1,3 @@
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
-15:28:04 [ERROR] Failed to find stock symbol ^GSPC!
+13:46:02 [INFO] symbol: "0H1C"
+13:46:02 [INFO] frequency: "quarterly"
+13:46:02 [INFO] active_tab: 1
