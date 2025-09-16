@@ -1,14 +1,12 @@
-![Finalytics](https://github.com/Nnamdi-sys/finalytics/raw/main/logo-color.png)
+# StockAnalysis
 
-[![Crates.io](https://img.shields.io/crates/v/finalytics)](https://crates.io/crates/finalytics)
-[![Docs.rs](https://docs.rs/finalytics/badge.svg)](https://docs.rs/finalytics/)
-![License](https://img.shields.io/crates/l/finalytics)
-[![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
-[![CodeFactor](https://www.codefactor.io/repository/github/nnamdi-sys/finalytics/badge)](https://www.codefactor.io/repository/github/nnamdi-sys/finalytics)
-[![Crates.io](https://img.shields.io/crates/d/finalytics)](https://crates.io/crates/finalytics)
+This project is based on [Finalytics](https://github.com/Nnamdi-sys/finalytics.git).
 
+It is a personal project that will at some point get something useful.
 
-**Finalytics** is a Rust library designed for retrieving financial data and performing security analysis and portfolio optimization.
+Goal is to retrieve historic and live market data through the [market-data](https://github.com/danrusei/market-data) package and an active subscription to one of the data providers, store them in a database, analyze them with the rust library and visualize them with the web frontend. At some point I want to get a notification when a monitored value does something interesting.
+
+Currently the rust library can work with data from the sqlite database. The database is updated by a small program running every night. Sooner or later this will have to move into the library and run in the background, updating the data every one to five minutes.
 
 ## Installation
 
@@ -16,22 +14,14 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "*"
-```
-
-Or run the following command:
-
-```bash
-cargo add finalytics
+stockanalysis = { git = "https://github.com/fangornsrealm/stockanalysis" }
 ```
 
 ## Example
 
-View the [documentation](https://docs.rs/finalytics/) for more information.
-
 ```rust
 use std::error::Error;
-use finalytics::prelude::*;
+use stockanalysis::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -89,75 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-
-## Python Binding
-
-[![pypi](https://img.shields.io/pypi/v/finalytics)](https://pypi.org/project/finalytics/)
-![License](https://img.shields.io/crates/l/finalytics)
-[![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
-[![Documentation Status](https://img.shields.io/badge/docs-quarto-blue)](https://nnamdi.quarto.pub/finalytics/)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
-![Python Version](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
-[![PyPI Downloads](https://static.pepy.tech/badge/finalytics)](https://pepy.tech/projects/finalytics)
-
-
-## Installation
-
-```bash
-pip install finalytics
-```
-
-## Example
-
-View the [documentation](https://nnamdi.quarto.pub/finalytics/) for more information.
-
-```python
-from finalytics import Screener, Tickers
-
-# Screen for Large Cap NASDAQ Stocks
-screener = Screener(
-    quote_type="EQUITY",
-    filters=[
-        '{"operator": "eq", "operands": ["exchange", "NMS"]}'
-    ],
-    sort_field="intradaymarketcap",
-    sort_descending=True,
-    offset=0,
-    size=10
-)
-screener.display()
-
-
-# Instantiate a Multiple Ticker Object
-symbols = screener.symbols()
-tickers = Tickers(symbols=symbols,
-                  start_date="2023-01-01",
-                  end_date="2024-12-31",
-                  interval="1d",
-                  confidence_level=0.95,
-                  risk_free_rate=0.02)
-
-# Generate a Single Ticker Report
-ticker = tickers.get_ticker(symbols[0])
-ticker.report("performance")
-ticker.report("financials")
-ticker.report("options")
-ticker.report("news")
-
-# Generate a Multiple Ticker Report
-tickers.report("performance")
-
-# Perform a Portfolio Optimization
-portfolio = tickers.optimize(objective_function="max_sharpe")
-
-# Generate a Portfolio Report
-portfolio.report("performance")
-```
-
-
 ## Web Application
-
-The Finalytics web application integrates the Ticker, Portfolio, and Screener dashboards, built with the Finalytics Rust Library using the [Dioxus Web Framework](https://dioxuslabs.com/). It allows users to perform security analysis, portfolio optimization, and screen for securities, all accessible at [finalytics.rs](https://finalytics.rs).
 
 ### Running Locally
 
@@ -168,7 +90,7 @@ To run the web application locally, follow these steps:
 cargo install dioxus-cli
 
 # Clone the repository
-git clone https://github.com/Nnamdi-sys/finalytics.git
+git clone https://github.com/fangornsrealm/stockanalysis.git
 
 # Navigate to the web directory
 cd finalytics/web
@@ -176,5 +98,3 @@ cd finalytics/web
 # Serve the application
 dx serve --platform web
 ```
-
-
