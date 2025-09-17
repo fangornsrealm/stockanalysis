@@ -8,20 +8,7 @@ use crate::components::table::TableContainer;
 
 #[component]
 pub fn Portfolio() -> Element {
-    let symbols = match std::env::var("FINALYTICS_SYMBOLS") {
-        Ok(arr) => {
-            let symbols = arr.replace(" ", ",");
-            use_signal(|| symbols)
-        }
-        Err(_) => {
-            let sql_connection = stockanalysis::data::sql::connect();
-            let symbolsstrings = stockanalysis::data::sql::active_symbols(sql_connection);
-            let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
-
-            use_signal(|| symbols.join(",").to_string())
-        }
-    };
-    //let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
+    let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
     let mut benchmark_symbol = use_signal(|| "MSFT".to_string());
     let mut start_date = use_signal(|| "2025-07-01".to_string());
     let mut end_date = use_signal(|| "2025-08-31".to_string());
