@@ -55,7 +55,37 @@ impl TickerCharts for Ticker {
         let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
         let end_date = Utc::now();
         let ohlcv = self.get_chart_daily(start_date, end_date).await?;
-        let table = ohlcv.to_datatable("ohlcv", true, DataTableFormat::Number);
+        let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
+            Ok(df) => df,
+            Err(error) => {
+                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let datetimes = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let adjclose = ohlcv.column("adjclose")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let df = df!(
+            "timestamp" => datetimes,
+            "open" => open,
+            "high" => high,
+            "low" => low,
+            "close" => close,
+            "volume" => volume,
+            "adjclose" => adjclose,
+        )?;
+
+        let table = df.to_datatable("df", true, DataTableFormat::Number);
         Ok(table)
     }
 
