@@ -1,0 +1,36 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug",
+            "program": "${workspaceFolder}/<executable file>",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'stockanalysis-web'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=stockanalysis-web",
+                    "--package=stockanalysis-web",
+                    "--features=dioxus/desktop"
+                ],
+                "filter": {
+                    "name": "stockanalysis-web",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "program": "${workspaceFolder}/target/dx/stockanalysis-web/debug/linux/app/stockanalysis-web",
+            "cwd": "${workspaceFolder}/target/dx/stockanalysis-web/debug/linux/app"
+        },
+    ]
+}
