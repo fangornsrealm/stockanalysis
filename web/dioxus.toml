@@ -1,11 +1,11 @@
 [application]
 
 # App (Project) Name
-name = "stockanalysisweb"
+name = "stockanalysis-web"
 
 # Dioxus App Default Platform
 # desktop, web, mobile, ssr
-default_platform = "web"
+default_platform = "desktop"
 
 # `build` & `serve` dist path
 out_dir = "dist"

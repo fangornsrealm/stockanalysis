@@ -2,11 +2,15 @@
 
 This project is based on [Finalytics](https://github.com/Nnamdi-sys/finalytics.git).
 
-It is a personal project that will at some point get something useful.
+It is a personal project that will at some point get to do something useful.
 
 Goal is to retrieve historic and live market data through the [market-data](https://github.com/danrusei/market-data) package and an active subscription to one of the data providers, store them in a database, analyze them with the rust library and visualize them with the web frontend. At some point I want to get a notification when a monitored value does something interesting.
 
-Currently the rust library can work with data from the sqlite database. The database is updated by a small program running every night. Sooner or later this will have to move into the library and run in the background, updating the data every one to five minutes.
+Currently the rust library can work with data from the sqlite database. See the Portfolio part of the testexample code and the generated HTML files.
+
+The database is updated by a small program running every night. Sooner or later this will have to move into the library and run in the background, updating the data every one to five minutes.
+
+The web app is currently still worked on to display basic things from the database.
 
 ## Installation
 

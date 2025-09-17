@@ -1,10 +1,9 @@
 [package]
 name = "stockanalysis"
-version = "0.8.3"
-authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
+version = "0.1.0"
+authors = ["Alexander Schwarzkopf <progs@fangornsrealm.eu>"]
 edition = "2021"
-homepage = "https://finalytics.rs/"
-repository = "https://github.com/Nnamdi-sys/finalytics"
+repository = "https://github.com/fangornsrealm/stockanalysis"
 license = "MIT"
 description = "A rust library for financial data analysis"
 readme = "../README.md"
