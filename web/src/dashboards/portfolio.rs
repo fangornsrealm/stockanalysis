@@ -8,8 +8,9 @@ use crate::components::table::TableContainer;
 
 #[component]
 pub fn Portfolio() -> Element {
-    let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
-    let mut benchmark_symbol = use_signal(|| "MSFT".to_string());
+    //let active_symbols = crate::server::get_symbols();
+    let symbols = use_signal(|| "AAPL,ADBE,ADS,AMD,ARM,ATOS,BAB,BAS,BCS,BE,BIDU,BNP,BYD,CSIQ,CWR,DBK,DELL,DEZ,DHER,DSY,DTE,ENR,EOAN,F3C,GOOGL,GTLB,HPE,IBM,IFX,INTC,KTN,META,MPW,MRNA,MSFT,MU,NET,NOW,NVDA,OKTA,OVH,PAH3,RHM,RWE,SAP,SIE,SMCI,SSTK,TKA,VOW3,VRNS,WAF,WBD,YSN".to_string());
+    let mut benchmark_symbol = use_signal(|| "0H1C".to_string());
     let mut start_date = use_signal(|| "2025-07-01".to_string());
     let mut end_date = use_signal(|| "2025-08-31".to_string());
     let mut interval = use_signal(|| "1d".to_string());
