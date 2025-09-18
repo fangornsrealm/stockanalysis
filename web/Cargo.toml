@@ -1,7 +1,11 @@
 [package]
 name = "web"
-version = "0.1.0"
-edition = "2021"
+description = "web frontend for user interaction"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 

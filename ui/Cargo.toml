@@ -1,7 +1,11 @@
 [package]
 name = "ui"
-version = "0.1.0"
-edition = "2021"
+description = "common ui elements for user interaction"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 dioxus = { version = "0.6.3", features = ["fullstack", "router"], workspace = true }

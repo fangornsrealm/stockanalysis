@@ -1,7 +1,11 @@
 [package]
 name = "desktop"
-version = "0.1.0"
-edition = "2021"
+description = "desktop frontend for user interaction"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 dioxus = { version = "0.6.3", workspace = true, features = ["fullstack", "router"] }
