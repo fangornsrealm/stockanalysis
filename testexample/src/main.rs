@@ -2,21 +2,14 @@
 //! Work with stock data and analyse and predict stuff
 
 use chrono::NaiveDateTime;
-use dioxus::prelude::IntoDynNode;
-use stockanalysis::prelude::TickerData;
 use log::{LevelFilter};
 //use polars::prelude::*;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
 use std::error::Error;
 use std::fs::File;
 
-use stockanalysis::prelude::{DataTable, DataTableDisplay, DataTableFormat, StatementFrequency, StatementType, Interval, Portfolio, PortfolioCharts, ObjectiveFunction};
+use api::prelude::*;
 
-mod app;
-mod components;
-mod dashboards;
-mod server;
-mod tools;
 
 /// convert an OsString (from PathBuf) to a usable String
 pub fn osstr_to_string(osstr: std::ffi::OsString) -> String {
@@ -152,22 +145,6 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
     Ok(())
 }
 
-pub trait ForDisplay {
-    type Out: IntoDynNode;
-
-    fn for_display(&self) -> Self::Out;
-}
-
-impl<T: ToString> ForDisplay for Option<T> {
-    type Out = Option<String>;
-
-    fn for_display(&self) -> Self::Out {
-        self.as_ref().map(ToString::to_string)
-    }
-}
-
-
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let logfile = "stock_analysis.txt".to_string();
@@ -187,11 +164,85 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ])
     .unwrap();
     
-    let sql_connection = stockanalysis::data::sql::connect();
-    let symbolsstrings = stockanalysis::data::sql::active_symbols(sql_connection.clone());
-    //let symbolsstrings = ["NVDA".to_string(), "AMD".to_string()];
+    // old and modifined functionality
+    
+    // Screen for Large-Cap NASDAQ Stocks
+    let screener = Screener::builder()
+        .quote_type(QuoteType::Equity)
+        .add_filter(ScreenerFilter::EqStr(
+            ScreenerMetric::Equity(EquityScreener::Exchange),
+            Exchange::NASDAQ.as_ref()
+        ))
+        .sort_by(
+            ScreenerMetric::Equity(EquityScreener::MarketCapIntraday),
+            true
+        )
+        .size(10)
+        .build()
+        .await?;
+
+    let overview = screener.overview().to_html();
+    match overview {
+        Ok(chart) => std::fs::write("screener_overview.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get overview for screener: {e}");
+            return Ok(());
+        }
+    }
+
+    let metrics = screener.metrics().await?.to_html();
+    match metrics {
+        Ok(chart) => std::fs::write("screener_metrics.html", &chart).expect("Should be able to write to file"),
+        Err(e) => {
+            log::error!("Failed to get metrics for screener: {e}");
+            return Ok(());
+        }
+    }
+
+    // Instantiate a Multiple Ticker Object
+    let ticker_symbols = screener.symbols.iter()
+        .map(|x| x.as_str()).collect::<Vec<&str>>();
+
+    let tickers = api::models::tickers::TickersBuilder::new()
+        .tickers(ticker_symbols.clone())
+        .start_date("2025-03-01")
+        .end_date("2025-09-15")
+        .interval(Interval::OneDay)
+        .benchmark_symbol("0H1C")
+        .confidence_level(0.95)
+        .risk_free_rate(0.02)
+        .build();
+
+    // Generate a Single Ticker Report
+    let symbol = ticker_symbols.first().unwrap();
+    let ticker = tickers.clone().get_ticker(symbol).await?;
+    let performance = ticker.report(Some(ReportType::Performance)).await?.to_html();
+    std::fs::write("screener_performance.html", &performance).expect("Should be able to write to file");
+    let financials = ticker.report(Some(ReportType::Financials)).await?.to_html();
+    std::fs::write("screener_financials.html", &financials).expect("Should be able to write to file");
+    let options = ticker.report(Some(ReportType::Options)).await?.to_html();
+    std::fs::write("screener_options.html", &options).expect("Should be able to write to file");
+    let news = ticker.report(Some(ReportType::News)).await?.to_html();
+    std::fs::write("screener_news.html", &news).expect("Should be able to write to file");
+
+    // Generate a Multiple Ticker Report
+    let report = tickers.report(Some(ReportType::Performance)).await?.to_html();
+    std::fs::write("screener_report.html", &report).expect("Should be able to write to file");
+
+    // Perform a Portfolio Optimization
+    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+
+    // Generate a Portfolio Report
+    portfolio.report(Some(ReportType::Performance)).await?.show()?;
+
+    // new functionality
+
+    // get a list of symbols from the database
+    let sql_connection = api::data::sql::connect();
+    let symbolsstrings = api::data::sql::active_symbols(sql_connection.clone());
+
+    // 
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
-    //let symbols = vec![ "AAPL", "ADBE", "AMD", "ARM", "BNP", "BYD", "DELL", "ENR", "GOOGL", "GTLB", "HPE", "MSFT", "MU", "NVDA", "RHM", "SMCI", "META", "DSY", "IBM", "BIDU", "SAP", "OKTA", "NET", "OVH", "IFX", "INTC", "NOW", "YSN", "SSTK", "VRNS" ];
     
     let mut tickers = Vec::new();
     let start_date = match NaiveDateTime::parse_from_str("2025-08-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
@@ -205,7 +256,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     for i in 0..symbols.len() {
         let stock_symbol = symbols[i].to_string();
-        let ticker = stockanalysis::models::ticker::TickerBuilder::new()
+        let ticker = api::models::ticker::TickerBuilder::new()
             .ticker(&stock_symbol)
             .start_date(&start_date.naive_utc().to_string())
             .end_date(&end_date.naive_utc().to_string())
@@ -222,61 +273,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //println!("{}", html);
         tickers.push(ticker);
         //table.show()?;
-
-        let fin = match crate::tools::financials(stock_symbol.clone(), start_date.naive_utc().to_string(), end_date.naive_utc().to_string()) {
-            Ok(ret) => ret,
-            Err(error) => {
-                log::error!("Failed to create financials view: {}", error);
-                return Ok(());
-            }
-        };
-        //std::fs::write("fin.html", &fin.key().for_display()).expect("Should be able to write to file");
-
-        let news = match crate::tools::news(stock_symbol.clone()) {
-            Ok(ret) => ret,
-            Err(error) => {
-                log::error!("Failed to create news view: {}", error);
-                return Ok(());
-            }
-        };
-        //std::fs::write("news.html", &news.revision().for_display()).expect("Should be able to write to file");
-        let opt = match crate::tools::options(stock_symbol.clone()) {
-            Ok(ret) => ret,
-            Err(error) => {
-                log::error!("Failed to create options view: {}", error);
-                return Ok(());
-            },
-        };
-        //std::fs::write("opt.html", &opt.revision().for_display()).expect("Should be able to write to file");
-
-        let perf = match crate::tools::performance() {
-            Ok(ret) => ret,
-            Err(error) => {
-                log::error!("Failed to create performance view: {}", error);
-                return Ok(());
-            },
-        };
-        //std::fs::write("perf.html", &perf.revision().for_display()).expect("Should be able to write to file");
-        
-        let screener = match crate::tools::screener() {
-            Ok(ret) => ret,
-            Err(error) => {
-                log::error!("Failed to create screener view: {}", error);
-                return Ok(());
-            },
-        };
-        //std::fs::write("screener.html", &screener.revision().for_display()).expect("Should be able to write to file");
-
-        let portfolio = match crate::tools::portfolio() {
-            Ok(ret) => ret,
-            Err(error) => {
-                log::error!("Failed to create portfolio view: {}", error);
-                return Ok(());
-            },
-        };
-        //ticker.get_financials(statement_type, frequency)
-
     }
+
     let portfolio: Result<Portfolio, String> = Portfolio::builder()
             .ticker_symbols(symbols.clone())
             .benchmark_symbol("0H1C")
