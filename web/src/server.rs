@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use std::str::FromStr;
 #[cfg(feature = "server")]
-use stockanalysis::prelude::*;
+use api::prelude::*;
 #[cfg(feature = "server")]
 use syntect::highlighting::ThemeSet;
 #[cfg(feature = "server")]
@@ -22,7 +22,7 @@ pub static ALL_SYMBOLS_DATALIST: Lazy<Mutex<HashMap<String, String>>> = Lazy::ne
 });
 
 #[cfg(feature = "server")]
-use stockanalysis::data::yahoo::screeners::screeners::FieldMetadata;
+use api::data::yahoo::screeners::screeners::FieldMetadata;
 
 #[cfg(not(feature = "server"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,6 +43,14 @@ pub struct ScreenerMetadata {
     pub fund_family: Vec<String>,
     pub fund_category: Vec<String>,
     pub metrics: HashMap<String, HashMap<String, FieldMetadata>>,
+}
+
+#[allow(clippy::too_many_arguments)]
+#[server]
+pub async fn get_symbols(
+) -> Result<Vec<String>, ServerFnError<String>> {
+    let symbols = api::data::sql::active_symbols(api::data::sql::connect());
+    Ok(symbols)
 }
 
 #[allow(clippy::too_many_arguments)]
