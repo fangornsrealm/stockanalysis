@@ -111,7 +111,7 @@ pub fn ohlcv_to_dataframe(
 }
 
 /// Returns the Ticker OHLCV Data from the database for a given time range
-pub fn daily_ohlcv_to_dataframe(
+pub async fn daily_ohlcv_to_dataframe(
     sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
     stock_symbol: &str,
     start_date: DateTime<Utc>,
@@ -122,39 +122,48 @@ pub fn daily_ohlcv_to_dataframe(
     metadata.start_date = start_date;
     metadata.end_date = end_date;
     let series: Vec<super::TimeSeriesData> = super::timeseries(sql_connection.clone(), &metadata);
-    // timestamps are expected to be number of milliseconds since 1.1. 1970.
-    let timestamp = series
-        .iter()
-        .map(|o| date_to_timestamp_millis(to_date(o.datetime * 1000)))
-        .collect::<Vec<i64>>();
+    if series.len() > 0 {
+        // timestamps are expected to be number of milliseconds since 1.1. 1970.
+        let timestamp = series
+            .iter()
+            .map(|o| date_to_timestamp_millis(to_date(o.datetime * 1000)))
+            .collect::<Vec<i64>>();
 
-    let open = series.iter().map(|o| o.open).collect::<Vec<f64>>();
+        let open = series.iter().map(|o| o.open).collect::<Vec<f64>>();
 
-    let high = series.iter().map(|o| o.high).collect::<Vec<f64>>();
+        let high = series.iter().map(|o| o.high).collect::<Vec<f64>>();
 
-    let low = series.iter().map(|o| o.low).collect::<Vec<f64>>();
+        let low = series.iter().map(|o| o.low).collect::<Vec<f64>>();
 
-    let close = series.iter().map(|o| o.close).collect::<Vec<f64>>();
+        let close = series.iter().map(|o| o.close).collect::<Vec<f64>>();
 
-    let volume = series.iter().map(|o| o.volume).collect::<Vec<f64>>();
+        let volume = series.iter().map(|o| o.volume).collect::<Vec<f64>>();
 
-    let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
+        let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
 
-    let df = df!(
-        "timestamp" => &timestamp,
-        "open" => &open,
-        "high" => &high,
-        "low" => &low,
-        "close" => &close,
-        "volume" => &volume,
-        "adjclose" => &adjclose
-    )?;
+        let df = df!(
+            "timestamp" => &timestamp,
+            "open" => &open,
+            "high" => &high,
+            "low" => &low,
+            "close" => &close,
+            "volume" => &volume,
+            "adjclose" => &adjclose
+        )?;
 
-    // check if any adjclose values are 0.0
-    let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
-    let df = df.filter(&mask)?;
+        // check if any adjclose values are 0.0
+        let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
+        let df = df.filter(&mask)?;
 
-    Ok(df)
+        Ok(df)
+    } else {
+        // No entries in database. Get from Yahoo financial
+        crate::data::yahoo::api::get_chart(
+            &stock_symbol, 
+            &start_date.date_naive().to_string(),
+            &end_date.date_naive().to_string(),
+            crate::data::yahoo::config::Interval::OneDay).await
+    }
 }
 
 pub fn ohlcv_hourly(ohlcv: DataFrame) -> Result<DataFrame, Box<dyn Error>> {

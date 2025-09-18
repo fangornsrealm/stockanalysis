@@ -50,7 +50,7 @@ impl TickerData for Ticker {
             //super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
         } else {
             let sql_connection = crate::data::sql::connect();
-            super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date)
+            super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date).await
         }
     }
 

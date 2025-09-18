@@ -1,12 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
-    "rust",
+    "ui",
     "web",
-    "testexample",
+    "desktop",
+    "mobile",
+    "api",
 ]
 
-exclude = ["web"]
+[workspace.dependencies]
+dioxus = { version = "0.6.3" }
+
+# workspace
+ui = { path = "ui" }
+api = { path = "api" }
 
 [profile]
 
@@ -19,4 +26,3 @@ inherits = "dev"
 
 [profile.android-dev]
 inherits = "dev"
-
