@@ -59,7 +59,7 @@ pub fn ohlcv_to_dataframe(
     let exchange_code = "XFRA";
     let metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
 
-    let series: Vec<super::TimeSeriesData> = super::live_data(sql_connection.clone(), &metadata);
+    let series: Vec<super::TimeSeriesData> = super::live_data::live_data(sql_connection.clone(), &metadata);
     // timestamps are expected to be number of milliseconds since 1.1. 1970.
     let timestamp = series
         .iter()
@@ -121,7 +121,7 @@ pub async fn daily_ohlcv_to_dataframe(
     let mut metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
     metadata.start_date = start_date;
     metadata.end_date = end_date;
-    let series: Vec<super::TimeSeriesData> = super::timeseries(sql_connection.clone(), &metadata);
+    let series: Vec<super::TimeSeriesData> = super::time_series::timeseries(sql_connection.clone(), &metadata);
     if series.len() > 0 {
         // timestamps are expected to be number of milliseconds since 1.1. 1970.
         let timestamp = series
