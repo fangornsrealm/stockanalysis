@@ -212,7 +212,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .confidence_level(0.95)
         .risk_free_rate(0.02)
         .build();
-
+/*
     // Generate a Single Ticker Report
     let symbol = ticker_symbols.first().unwrap();
     let ticker = tickers.clone().get_ticker(symbol).await?;
@@ -228,13 +228,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Generate a Multiple Ticker Report
     let report = tickers.report(Some(ReportType::Performance)).await?.to_html();
     std::fs::write("screener_report.html", &report).expect("Should be able to write to file");
-
+*/
     // Perform a Portfolio Optimization
     let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
 
     // Generate a Portfolio Report
-    portfolio.report(Some(ReportType::Performance)).await?.show()?;
-
+    let portfolioreport = portfolio.report(Some(ReportType::Performance)).await?.to_html();
+    std::fs::write("screener_portfolioreport.html", &portfolioreport).expect("Should be able to write to file");
     // new functionality
 
     // get a list of symbols from the database
@@ -245,14 +245,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
     
     let mut tickers = Vec::new();
-    let start_date = match NaiveDateTime::parse_from_str("2025-08-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
+    let start_date = match NaiveDateTime::parse_from_str("2025-03-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
         Ok(dt) => dt.and_utc(),
         Err(error) => {
             log::error!("Failed to parse fixed datetime!: {}", error);
             std::process::exit(1);
         },
     };
-    let end_date = chrono::Utc::now();
+    //let end_date = chrono::Utc::now();
+    let end_date = match NaiveDateTime::parse_from_str("2025-09-15 00:00:00", "%Y-%m-%d %H:%M:%S") {
+        Ok(dt) => dt.and_utc(),
+        Err(error) => {
+            log::error!("Failed to parse fixed datetime!: {}", error);
+            std::process::exit(1);
+        },
+    };
 
     for i in 0..symbols.len() {
         let stock_symbol = symbols[i].to_string();

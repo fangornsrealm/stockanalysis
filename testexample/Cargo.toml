@@ -1,13 +1,11 @@
 [package]
 name = "testexample"
-description = "Example of library usage and test."
-license.workspace = true
-authors.workspace = true
-repository.workspace = true
-version.workspace = true
-edition.workspace = true
-keywords.workspace = true
-publish = false
+description = "Example of library usage and test"
+edition = "2021"
+repository = "https://github.com/fangornsrealm/stockanalysis"
+license = "MIT"
+version = "0.1.0"
+keywords = ["finance", "analytics"]
 
 [dependencies]
 api = { path = "../api" }

@@ -1,3 +1,10 @@
-13:46:02 [INFO] symbol: "0H1C"
-13:46:02 [INFO] frequency: "quarterly"
-13:46:02 [INFO] active_tab: 1
+11:28:40 [DEBUG] (1) reqwest::connect: starting new connection: https://fc.yahoo.com/
+11:28:41 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A3'
+11:28:41 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A3'
+11:28:41 [DEBUG] (1) reqwest::connect: starting new connection: https://query2.finance.yahoo.com/
+11:28:42 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A1'
+11:28:42 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A3'
+11:28:42 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A1S'
+11:28:42 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A1'
+11:28:42 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A3'
+11:28:42 [DEBUG] (1) cookie_store::cookie_store: inserting secure cookie 'A1S'
