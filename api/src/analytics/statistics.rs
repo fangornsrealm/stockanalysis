@@ -44,14 +44,43 @@ impl PerformanceStats {
     ///
     /// * `PerformanceStats` struct
     pub fn compute_stats(
-        returns: Series,
-        benchmark_returns: Series,
+        untested_returns: Series,
+        untested_benchmark_returns: Series,
         risk_free_rate: f64,
         confidence_level: f64,
         interval: IntervalDays,
     ) -> Result<PerformanceStats, Box<dyn Error>> {
-        let _len = returns.len();
+        let _len;
         let days = interval.mode;
+        let returns;
+        let benchmark_returns;
+        if untested_returns.len() > untested_benchmark_returns.len() {
+            _len = untested_benchmark_returns.len();
+            let as_vec: Vec<f64> = untested_returns.f64()?.into_no_null_iter().collect();
+            let mut x_new = Vec::new();
+            for i in 0.._len {
+                x_new.push(as_vec[i]);
+            }
+            returns = x_new.iter().collect();
+            benchmark_returns = untested_benchmark_returns.clone();
+        } else if untested_returns.len() < untested_benchmark_returns.len() {
+            _len = untested_returns.len();
+            let as_vec: Vec<f64> = untested_benchmark_returns.f64()?.into_no_null_iter().collect();
+            let mut y_new = Vec::new();
+            for i in 0.._len {
+                y_new.push(as_vec[i]);
+            }
+            returns = untested_returns.clone();
+            benchmark_returns = y_new.iter().collect();
+        } else {
+            _len = untested_returns.len();
+            returns = untested_returns.clone();
+            benchmark_returns = untested_benchmark_returns.clone();
+        }
+
+        if returns.len() != benchmark_returns.len() {
+            log::error!("Uneven series with {} and {} elements!", returns.len(), benchmark_returns.len())
+        }
         let annual_days = 365.0/interval.average;
         let risk_free_rate = risk_free_rate * 100.0;
         let cumulative_return = cumulative_return(&returns);

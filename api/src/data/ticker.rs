@@ -37,7 +37,33 @@ impl TickerData for Ticker {
             let sql_connection = crate::data::sql::connect();
             let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?;
             let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?;
-            super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date.into(), end_date.into())
+            match super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date.into(), end_date.into()) {
+                Ok(ohlcv) => {
+                    if ohlcv.height() > 0 {
+                        return Ok(ohlcv);
+                    } else {
+                        // no entries in database or symbol not found, search yahoo instead
+                        let yahoo_ohlcv = yahoo::api::get_chart(
+                            &self.ticker, 
+                            &start_date.to_string(), 
+                            &end_date.to_string(),
+                            yahoo::config::Interval::OneDay
+                        ).await;
+                        return yahoo_ohlcv;
+                    }
+                },
+                Err(error) => {
+                    log::error!("{}", error);
+                    // no entries in database or symbol not found, search yahoo instead
+                    let yahoo_ohlcv = yahoo::api::get_chart(
+                        &self.ticker, 
+                            &start_date.to_string(), 
+                            &end_date.to_string(),
+                            yahoo::config::Interval::OneDay
+                        ).await;
+                    return yahoo_ohlcv;
+                }
+            }
         }
     }
 
@@ -50,7 +76,33 @@ impl TickerData for Ticker {
             //super::livedata::update_dataframe(&ticker_data.to_dataframe()?, &self.ticker)
         } else {
             let sql_connection = crate::data::sql::connect();
-            super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date).await
+            match super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date).await {
+                Ok(ohlcv) => {
+                    if ohlcv.height() > 0 {
+                        return Ok(ohlcv);
+                    } else {
+                        // no entries in database or symbol not found, search yahoo instead
+                        let yahoo_ohlcv = yahoo::api::get_chart(
+                            &self.ticker, 
+                            &start_date.date_naive().to_string(), 
+                            &end_date.date_naive().to_string(),
+                            yahoo::config::Interval::OneDay
+                        ).await;
+                        return yahoo_ohlcv;
+                    }
+                },
+                Err(error) => {
+                    log::error!("{}", error);
+                    // no entries in database or symbol not found, search yahoo instead
+                    let yahoo_ohlcv = yahoo::api::get_chart(
+                        &self.ticker, 
+                            &start_date.date_naive().to_string(), 
+                            &end_date.date_naive().to_string(),
+                            yahoo::config::Interval::OneDay
+                        ).await;
+                    return yahoo_ohlcv;
+                }
+            }
         }
     }
 

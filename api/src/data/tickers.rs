@@ -79,7 +79,34 @@ pub trait TickersData {
 impl TickersData for Tickers {
     /// Fetch the OHLCV Data for all tickers in the Tickers Struct
     async fn get_chart(&self) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), get_chart, 1)
+        let mut results = Vec::new();
+        let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_utc();
+        let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_utc();
+        for ticker in self.tickers.clone().into_iter() {
+            let fut = match ticker.get_chart_daily(start_date, end_date).await {
+                Ok(chart) => {
+                    Ok(chart)
+                }
+                Err(e) => {
+                    eprintln!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e);
+                    Err(format!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e))
+                }
+            };
+
+            results.push(fut);
+        }
+
+        let mut combined = results[0].clone()?;
+        for i in 1..results.len() {
+            if let Ok(frame) = results[i].clone() {
+                combined = combined.left_join(&frame, ["adjclose"], ["open"])?
+            }
+        }
+        Ok(combined)
     }
 
     /// Fetch the Historical News Headlines for all tickers in the Tickers Struct

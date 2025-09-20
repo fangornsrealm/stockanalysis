@@ -1,3 +1,4 @@
+pub mod detectors;
 pub mod performance;
 pub  mod technicals;
 pub mod statistics;

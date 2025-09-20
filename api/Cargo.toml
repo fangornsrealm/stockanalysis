@@ -11,6 +11,28 @@ keywords = ["finance", "analytics"]
 path = "src/lib.rs"
 
 [dependencies]
+augurs = { path = "../../augurs/crates/augurs" , features = [
+    "changepoint",
+    "clustering", 
+    "dtw", 
+    "ets",
+    "forecaster",
+    "mstl",
+    "prophet",
+    "prophet-cmdstan",
+    "prophet-wasmstan",
+    "seasons",
+] }
+augurs-changepoint = { path = "../../augurs/crates/augurs-changepoint" }
+augurs-clustering  = { path = "../../augurs/crates/augurs-clustering" }
+augurs-core        = { path = "../../augurs/crates/augurs-core" }
+augurs-dtw         = { path = "../../augurs/crates/augurs-dtw" }
+augurs-ets         = { path = "../../augurs/crates/augurs-ets" }
+augurs-forecaster  = { path = "../../augurs/crates/augurs-forecaster" }
+augurs-mstl        = { path = "../../augurs/crates/augurs-mstl" }
+augurs-prophet     = { path = "../../augurs/crates/augurs-prophet" }
+augurs-seasons     = { path = "../../augurs/crates/augurs-seasons" }
+
 anyhow = "1.0.99"
 cached = { version = "0.56.0", features = ["async"] }
 chrono = { version = "0.4", features = ["unstable-locales"] }

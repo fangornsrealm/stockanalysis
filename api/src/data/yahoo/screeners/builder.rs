@@ -239,16 +239,16 @@ impl ScreenerBuilder {
         while remaining > 0 {
             let chunk_size = std::cmp::min(remaining, 250);
             let payload = json!({
-            "offset": current_offset,
-            "size": chunk_size,
-            "sortField": sort_field,
-            "sortType": sort_type,
-            "quoteType": quote_type_str,
-            "query": {
-                "operator": "AND",
-                "operands": &filters_json
-            }
-        });
+                "offset": current_offset,
+                "size": chunk_size,
+                "sortField": sort_field,
+                "sortType": sort_type,
+                "quoteType": quote_type_str,
+                "query": {
+                    "operator": "AND",
+                    "operands": &filters_json
+                }
+            });
 
             let result = post_json_response(url.clone(), payload).await?;
             let json_array = result["finance"]["result"][0]["quotes"].as_array().ok_or("No quotes array")?;

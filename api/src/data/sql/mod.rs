@@ -9,9 +9,11 @@ use lazy_static::lazy_static;
 pub mod events;
 pub mod init;
 pub mod live_data;
+pub use live_data::{live_data, insert_live_data};
 pub mod symbols;
-//pub use metadata::{metadata, check_equity_exists};
+pub use symbols::{active_symbols, insert_active_symbols, check_equity_exists};
 pub mod time_series;
+pub use time_series::{timeseries, insert_timeseries};
 pub mod to_dataframe;
 pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe, i64_to_datetime_vec};
 

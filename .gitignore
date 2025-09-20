@@ -1,5 +1,7 @@
 /target
-/web2
+/api/target
+/testexample/target
+/daemon/target
 /testexample/*.html
 /testexample/*.txt
 *.html

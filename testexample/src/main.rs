@@ -212,7 +212,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .confidence_level(0.95)
         .risk_free_rate(0.02)
         .build();
-/*
+
     // Generate a Single Ticker Report
     let symbol = ticker_symbols.first().unwrap();
     let ticker = tickers.clone().get_ticker(symbol).await?;
@@ -228,7 +228,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Generate a Multiple Ticker Report
     let report = tickers.report(Some(ReportType::Performance)).await?.to_html();
     std::fs::write("screener_report.html", &report).expect("Should be able to write to file");
-*/
+
     // Perform a Portfolio Optimization
     let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
 
