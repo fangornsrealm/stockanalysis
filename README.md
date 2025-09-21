@@ -4,13 +4,13 @@ This project is based on [Finalytics](https://github.com/Nnamdi-sys/finalytics.g
 
 It is a personal project that will at some point get to do something useful.
 
-Goal is to retrieve historic and live market data through the [market-data](https://github.com/danrusei/market-data) package and an active subscription to one of the data providers, store them in a database, analyze them with the rust library and visualize them with the web frontend. At some point I want to get a notification when a monitored value does something interesting.
+Goal is to retrieve historic and live market data through the [market-data](https://github.com/danrusei/market-data) package and an active subscription to one of the data providers, store them in a database, analyze them with the rust library and visualize them into HTML files. At some point I want to get a notification when a monitored value does something interesting and either open the HTML report directly from the notification or open a link to a self-hosted webserver in my home network and load the HTML report from there.
 
 Currently the rust library can work with data from the sqlite database. See the Portfolio part of the testexample code and the generated HTML files.
 
 The database is updated by a small program running every night. Sooner or later this will have to move into the library and run in the background, updating the data every one to five minutes.
 
-The web app is currently still worked on to display basic things from the database.
+The web app is currently on hold. After three long days of trying to make it do something I can verify I decided that it is not worth the effort for my use-case.
 
 ## Installation
 
@@ -81,24 +81,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-```
-
-## Web Application
-
-### Running Locally
-
-To run the web application locally, follow these steps:
-
-```bash
-# Install the Dioxus CLI
-cargo install dioxus-cli
-
-# Clone the repository
-git clone https://github.com/fangornsrealm/stockanalysis.git
-
-# Navigate to the web directory
-cd finalytics/web
-
-# Serve the application
-dx serve --platform web
 ```
