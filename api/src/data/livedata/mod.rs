@@ -26,13 +26,31 @@ pub fn live_data(
             Err(_e) => match var("Polygon_APIKey") {
                 Ok(_val) => polygon_io::live_data(symbol, start_time, end_time),
                 Err(e) => {
-                    print!("Please use one of the supported supplier for live stock data!");
+                    print!("Please use one of the supported suppliers for live stock data!");
                     Err(Box::new(e))
                 }
             }
         }
     }
 }
+
+// find out which provider is used and use the according function
+pub fn update_nightly(symbols: &Vec<String>) {
+
+    match var("Twelvedata_TOKEN") {
+        Ok(_val) => twelvedata::update_nightly(symbols),
+        Err(_e) => match var("AlphaVantage_TOKEN") {
+            Ok(_val) => alphavantage::update_nightly(symbols),
+            Err(_e) => match var("Polygon_APIKey") {
+                Ok(_val) => polygon_io::update_nightly(symbols),
+                Err(_e) => {
+                    print!("Please use one of the supported supplier for live stock data!");
+                }
+            }
+        }
+    }
+}
+
 
 pub fn marketdata_to_timeseries(
     timeseries: &market_data::EnhancedMarketSeries,
