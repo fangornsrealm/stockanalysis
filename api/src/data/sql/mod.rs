@@ -219,7 +219,7 @@ pub fn metadata(
 }
 
 /// Stock data time series
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct TimeSeriesData {
     /// Datetime stored as i64
     pub datetime: i64,
@@ -249,7 +249,7 @@ impl Default for TimeSeriesData {
 }
 
 /// Stock event jump up or down by x percent
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct JumpEventData {
     /// Datetime stored as i64
     pub datetime: i64,
@@ -270,14 +270,14 @@ impl Default for JumpEventData {
 }
 
 /// Stock event recurring every x minutes by +- y percent
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct RecurringEventData {
     /// symbol name
     pub symbol: String,
     /// period in minutes i64
     pub minutes_period: i64,
-    /// percent of change and sign
-    pub percent: f64,
+    /// divisor for minutes_period to get number of timestamps
+    pub time_scale: f64,
 }
 
 impl Default for RecurringEventData {
@@ -285,7 +285,7 @@ impl Default for RecurringEventData {
         RecurringEventData {
             symbol: String::new(),
             minutes_period: 0,
-            percent: 0.0,
+            time_scale: 0.0,
         }
     }
 }

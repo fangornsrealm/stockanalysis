@@ -617,6 +617,7 @@ pub fn insert_active_symbols(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     symbols: &Vec<String>,
 ) -> u32 {
+    let existing = active_symbols(sql_connection.clone());
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -625,6 +626,9 @@ pub fn insert_active_symbols(
         }
     };
     for i in 0..symbols.len() {
+        if existing.contains(&symbols[i]) {
+            continue;
+        }
         match connection.execute(
             "INSERT INTO active_symbols (symbol) VALUES (?1)",
             params![&symbols[i]],

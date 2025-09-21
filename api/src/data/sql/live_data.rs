@@ -153,20 +153,25 @@ pub fn live_data(
 pub fn insert_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    timeseries: &market_data::EnhancedMarketSeries,
+    series: &market_data::EnhancedMarketSeries,
 ) -> Vec<super::TimeSeriesData> {
-    let mut series = Vec::new();
+    let existing = live_data(sql_connection.clone(), metadata);
+    let exists: std::collections::BTreeSet<i64> = existing.iter().map(|t| t.datetime).collect();
+    let mut v = Vec::new();
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
             log::error!("Failed to lock sql connection for use! {}", error);
-            return series;
+            return v;
         }
     };
-    let num_values = timeseries.series.len();
+    let num_values = series.series.len();
     let base_timestamp = chrono::Utc::now().timestamp();
     for i in 0..num_values {
         let timestamp = base_timestamp - (num_values - i) as i64 * 60;
+        if exists.contains(&timestamp) {
+            continue;
+        }
         let mut sma = 0.0_f32;
         let mut ema = 0.0_f32;
         let mut rsi = 0.0_f32;
@@ -174,30 +179,30 @@ pub fn insert_live_data(
         let mut macd_value = 0.0_f32;
         let mut signal_value = 0.0_f32;
         let mut hist_value = 0.0_f32;
-        for (_indicator_name, indicator_values) in &timeseries.indicators.sma {
+        for (_indicator_name, indicator_values) in &series.indicators.sma {
             if let Some(value) = indicator_values.get(i) {
                 sma = value.to_owned();
             }
         }
 
-        for (_indicator_name, indicator_values) in &timeseries.indicators.ema {
+        for (_indicator_name, indicator_values) in &series.indicators.ema {
             if let Some(value) = indicator_values.get(i) {
                 ema = value.to_owned();
             }
         }
 
-        for (_indicator_name, indicator_values) in &timeseries.indicators.rsi {
+        for (_indicator_name, indicator_values) in &series.indicators.rsi {
             if let Some(value) = indicator_values.get(i) {
                 rsi = value.to_owned();
             }
         }
 
-        for (_indicator_name, indicator_values) in &timeseries.indicators.stochastic {
+        for (_indicator_name, indicator_values) in &series.indicators.stochastic {
             if let Some(value) = indicator_values.get(i) {
                 stochastic = value.to_owned();
             }
         }
-        for (_indicator_name, (macd, signal, histogram)) in &timeseries.indicators.macd {
+        for (_indicator_name, (macd, signal, histogram)) in &series.indicators.macd {
             if let Some(val1) = macd.get(i) {
                 if let Some(val2) = signal.get(i) {
                     if let Some(val3) = histogram.get(i) {
@@ -210,25 +215,25 @@ pub fn insert_live_data(
         }
         match connection.execute(
             "INSERT INTO live_data (timestamp, symbol, currency, exchange, open, high, low, close, volume, sma, ema, rsi, stochastic, macd_value, signal_value, hist_value ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &timeseries.series[i].open, &timeseries.series[i].high, &timeseries.series[i].low, &timeseries.series[i].close, &timeseries.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
+            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
         ) {
             Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 log::error!("Failed insert live_data! {}", error);
-                return series;
+                return v;
             }
         }
-        let v = super::TimeSeriesData {
+        let t = super::TimeSeriesData {
             datetime: timestamp,
-            open: timeseries.series[i].open as f64,
-            high: timeseries.series[i].high as f64,
-            low: timeseries.series[i].low as f64,
-            close: timeseries.series[i].close as f64,
-            volume: timeseries.series[i].volume as f64,
+            open: series.series[i].open as f64,
+            high: series.series[i].high as f64,
+            low: series.series[i].low as f64,
+            close: series.series[i].close as f64,
+            volume: series.series[i].volume as f64,
         };
-        series.push(v);
+        v.push(t);
     }
-    series
+    v
 }
 
 pub fn _delete_live_data(

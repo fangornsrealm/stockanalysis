@@ -129,6 +129,10 @@ pub fn insert_jump_events(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     series: &Vec<super::JumpEventData>,
 ) {
+    if series.len() == 0 {
+        return;
+    }
+    let existing = jump_events(sql_connection.clone(), &series[0].symbol);
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -136,11 +140,13 @@ pub fn insert_jump_events(
             return;
         }
     };
-    let num_values = series.len();
-    for i in 0..num_values {
+    for j in series.iter() {
+        if existing.contains(j) {
+            continue;
+        }
         match connection.execute(
             "INSERT INTO jump_events (timestamp, symbol, percent ) VALUES (?1, ?2, ?3)",
-            params![&series[i].datetime, &series[i].symbol, &series[i].percent],
+            params![&j.datetime, &j.symbol, &j.percent],
         ) {
             Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
@@ -305,6 +311,10 @@ pub fn insert_drop_events(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     series: &Vec<super::JumpEventData>,
 ) {
+    if series.len() == 0 {
+        return;
+    }
+    let existing = jump_events(sql_connection.clone(), &series[0].symbol);
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -312,11 +322,13 @@ pub fn insert_drop_events(
             return;
         }
     };
-    let num_values = series.len();
-    for i in 0..num_values {
+    for j in series.iter() {
+        if existing.contains(j) {
+            continue;
+        }
         match connection.execute(
             "INSERT INTO drop_events (timestamp, symbol, percent ) VALUES (?1, ?2, ?3)",
-            params![&series[i].datetime, &series[i].symbol, &series[i].percent],
+            params![&j.datetime, &j.symbol, &j.percent],
         ) {
             Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
@@ -445,7 +457,7 @@ pub fn recurring_events(
                                     }
                                 }
                                 match row.get(2) {
-                                    Ok(val) => s.percent = val,
+                                    Ok(val) => s.time_scale = val,
                                     Err(error) => {
                                         log::error!("Failed to read high for recurring_events: {}", error);
                                         continue;
@@ -481,6 +493,10 @@ pub fn insert_recurring_events(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     series: &Vec<super::RecurringEventData>,
 ) {
+    if series.len() == 0 {
+        return;
+    }
+    let existing = recurring_events(sql_connection.clone(), &series[0].symbol);
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -488,11 +504,13 @@ pub fn insert_recurring_events(
             return;
         }
     };
-    let num_values = series.len();
-    for i in 0..num_values {
+    for j in series.iter() {
+        if existing.contains(j) {
+            continue;
+        }
         match connection.execute(
             "INSERT INTO recurring_events (symbol, minutes_period percent ) VALUES (?1, ?2, ?3)",
-            params![&series[i].symbol, &series[i].minutes_period, &series[i].percent],
+            params![&j.symbol, &j.minutes_period, &j.time_scale],
         ) {
             Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {

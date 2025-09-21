@@ -151,8 +151,10 @@ pub fn timeseries(
 pub fn insert_timeseries(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    timeseries: &market_data::EnhancedMarketSeries,
+    series: &market_data::MarketSeries,
 ) -> u32 {
+    let existing = timeseries(sql_connection.clone(), metadata);
+    let exists: std::collections::BTreeSet<i64> = existing.iter().map(|t| t.datetime).collect();
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -160,18 +162,16 @@ pub fn insert_timeseries(
             return 0;
         }
     };
-    let dt = chrono::Utc::now();
-    let offset = dt.offset().clone();
-    for i in 0..timeseries.series.len() {
-        let timestamp = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-            timeseries.series[i].date.clone().into(),
-            offset,
-        )
-        .timestamp()
-            + 22 * 3600;             // value at 22:00 
+
+    for i in 0..series.data.len() {
+        let time= chrono::NaiveTime::from_num_seconds_from_midnight_opt(22 * 3600, 0).expect("If this does not work the chrono code is crap!");
+        let timestamp = series.data[i].date.and_time(time).and_utc().timestamp();
+        if exists.contains(&timestamp) {
+            continue;
+        }
         match connection.execute(
             "INSERT INTO time_series (timestamp, symbol, currency, exchange, open, high, low, close, volume) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &timeseries.series[i].open, &timeseries.series[i].high, &timeseries.series[i].low, &timeseries.series[i].close, &timeseries.series[i].volume ],
+            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.data[i].open, &series.data[i].high, &series.data[i].low, &series.data[i].close, &series.data[i].volume ],
         ) {
             Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
@@ -186,7 +186,7 @@ pub fn insert_timeseries(
 pub fn _delete_timeseries(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    _timeseries: &market_data::EnhancedMarketSeries,
+    _timeseries: &market_data::MarketSeries,
 ) {
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
@@ -204,7 +204,7 @@ pub fn _delete_timeseries(
 pub fn _update_timeseries(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    timeseries: &market_data::EnhancedMarketSeries,
+    timeseries: &market_data::MarketSeries,
 ) {
     _delete_timeseries(sql_connection.clone(), metadata, timeseries);
     insert_timeseries(sql_connection.clone(), metadata, timeseries);
