@@ -59,7 +59,7 @@ impl TickerCharts for Ticker {
                     .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
                     .and_utc();
         let ohlcv = self.get_chart_daily(start_date, end_date).await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -111,7 +111,7 @@ impl TickerCharts for Ticker {
                     .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
                     .and_utc();
         let ohlcv = self.get_chart_daily(start_date, end_date).await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
