@@ -1,6 +1,6 @@
 use std::error::Error;
 use polars::prelude::*;
-use chrono::{DateTime, Utc, Months};
+use chrono::DateTime;
 use plotly::common::{AxisSide, Fill, Line, LineShape, Mode, Title};
 use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder, SelectorButton, SelectorStep, StepMode};
@@ -52,8 +52,12 @@ impl TickerCharts for Ticker {
     ///
     /// * `DataTable` - Interactive Table Chart struct
     async fn ohlcv_table(&self) -> Result<DataTable, Box<dyn Error>> {
-        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
-        let end_date = Utc::now();
+        let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_utc();
+        let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_utc();
         let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
@@ -100,8 +104,12 @@ impl TickerCharts for Ticker {
     ///
     /// * `Plot` Plotly Chart struct
     async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
-        let start_date = Utc::now().checked_sub_months(Months::new(6)).unwrap();
-        let end_date = Utc::now();
+        let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_utc();
+        let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_utc();
         let ohlcv = self.get_chart_daily(start_date, end_date).await?;
         let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
