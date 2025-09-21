@@ -15,7 +15,7 @@ pub fn live_data(
     symbol: &str,
     _start_time: chrono::NaiveDateTime,
     _end_time: chrono::NaiveDateTime,
-)  -> Result<Vec<sql::TimeSeriesData>, Box<dyn std::error::Error>> {
+)  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
     let mut site = AlphaVantage::new(TOKEN.to_string());
     // retrieve per minute data
     match site.intraday_series(symbol, OutputSize::Compact, Interval::Min1) {
@@ -52,18 +52,15 @@ pub fn live_data(
         })
         .collect();
 
-    // store the data
-    let mut retvec = Vec::new();
-    for data in enhanced_data.iter() {
-        retvec.extend(super::marketdata_to_timeseries(data));
-    }
-    Ok(retvec)
+    Ok(enhanced_data)
 }
 
 /// Update the database at night for all active symbols with missing daily data
-pub fn update_nightly(symbols: &Vec<String>) {
+pub fn update_nightly(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
+    symbols: &Vec<String>
+) {
     let site = AlphaVantage::new(TOKEN.to_string());
-    let sql_connection = crate::data::sql::connect();
     let exchange_code = "XFRA";
      // create the MarketClient
     let mut client = MarketClient::new(site);

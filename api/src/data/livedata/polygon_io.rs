@@ -13,9 +13,9 @@ lazy_static! {
 
 pub fn live_data(
     symbol: &str,
-    _start_time: chrono::NaiveDateTime,
-    _end_time: chrono::NaiveDateTime,
-)  -> Result<Vec<sql::TimeSeriesData>, Box<dyn std::error::Error>> {
+    start_time: chrono::NaiveDateTime,
+    end_time: chrono::NaiveDateTime,
+)  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
     let site: Polygon = Polygon::new(TOKEN.to_string());
     // create the MarketClient
     let mut client: MarketClient<Polygon> = MarketClient::new(site);
@@ -23,8 +23,13 @@ pub fn live_data(
     // check if we have data for this symbol
     let stock_symbol = symbol.to_string();
     // retrieve per minute data for the last 10 minutes
-    let datestring = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    client.site.intraday_series(stock_symbol, &datestring, &datestring, Interval::Min1, 960)?;
+    client.site.intraday_series(
+        stock_symbol, 
+        &start_time.to_string(), 
+        &end_time.to_string(), 
+        Interval::Min1, 
+        960
+    )?;
     // creates the query URL & download the raw data
     client = client.create_endpoint()?.get_data()?;
     // transform into MarketSeries, that can be used for further processing
@@ -53,18 +58,16 @@ pub fn live_data(
         .collect();
 
     // store the data
-    let mut retvec = Vec::new();
-    for data in enhanced_data.iter() {
-        retvec.extend(super::marketdata_to_timeseries(data));
-    }
-    Ok(retvec)
+    Ok(enhanced_data)
 }
 
 
 /// Update the database at night for all active symbols with missing daily data
-pub fn update_nightly(symbols: &Vec<String>) {
+pub fn update_nightly(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
+    symbols: &Vec<String>
+) {
     let site = Polygon::new(TOKEN.to_string());
-    let sql_connection = crate::data::sql::connect();
     let exchange_code = "XFRA";
      // create the MarketClient
     let mut client = MarketClient::new(site);

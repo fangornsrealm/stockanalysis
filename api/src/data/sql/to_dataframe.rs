@@ -42,11 +42,29 @@ pub fn str_to_datetime(datetime_str: &str) -> Result<NaiveDateTime, Box<dyn Erro
 }
 
 /// converts a vector of UNIX Timestamps to a vector of NaiveDateTime
-pub fn i64_to_datetime_vec(df: DataFrame) -> Result<Vec<NaiveDateTime>, Box<dyn Error>> {
+pub fn i64_column_to_datetime_vec(df: DataFrame) -> Result<Vec<NaiveDateTime>, Box<dyn Error>> {
     let df2 = df.column("timestamp")?.i64()?
             .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
             .naive_local()).collect::<Vec<NaiveDateTime>>();
     Ok(df2)
+}
+
+pub fn f64_column_to_vec(
+    df: &polars::prelude::DataFrame, 
+    columnname: &str
+) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+    let v = df.column(columnname)?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+    Ok(v)
+}
+
+pub fn i64_column_to_vec(
+    df: &polars::prelude::DataFrame, 
+    columnname: &str
+) -> Result<Vec<i64>, Box<dyn std::error::Error>> {
+    let v = df.column(columnname)?.i64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<i64>>();
+    Ok(v)
 }
 
 /// Returns the Ticker OHLCV Data from the database for a given time range
@@ -57,8 +75,9 @@ pub fn ohlcv_to_dataframe(
     end_date: NaiveDateTime,
 ) -> Result<DataFrame, Box<dyn Error>> {
     let exchange_code = "XFRA";
-    let metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
-
+    let mut metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
+    metadata.start_date = start_date.clone().and_utc();
+    metadata.end_date = end_date.clone().and_utc();
     let series: Vec<super::TimeSeriesData> = super::live_data::live_data(sql_connection.clone(), &metadata);
     // timestamps are expected to be number of milliseconds since 1.1. 1970.
     let timestamp = series
@@ -93,7 +112,7 @@ pub fn ohlcv_to_dataframe(
     let df = df.filter(&mask)?;
 
     // check id any returned dates smaller than start date or greater than end date
-    match i64_to_datetime_vec(df.clone()) {
+    match i64_column_to_datetime_vec(df.clone()) {
         Ok(dt) => {
             let mask = dt.iter()
                 .map(|x| {

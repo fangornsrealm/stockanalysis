@@ -15,7 +15,7 @@ pub use symbols::{active_symbols, insert_active_symbols, check_equity_exists};
 pub mod time_series;
 pub use time_series::{timeseries, insert_timeseries};
 pub mod to_dataframe;
-pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe, i64_to_datetime_vec};
+pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe, i64_column_to_datetime_vec};
 
 /// Metadata stock metadata
 #[derive(Debug, Deserialize, Serialize)]
@@ -31,8 +31,8 @@ pub struct MetaData {
     exchange_code: String,
     #[allow(dead_code)]
     r#type: String,
-    start_date: DateTime<Utc>,
-    end_date: DateTime<Utc>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
 }
 
 impl Default for MetaData {
