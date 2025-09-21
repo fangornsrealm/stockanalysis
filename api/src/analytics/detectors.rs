@@ -5,6 +5,7 @@ use augurs::{
     changepoint::{Detector as ChangepointDetector, DefaultArgpcpDetector},
     clustering::{DbscanCluster, DbscanClusterer},
     dtw::Dtw,
+    ets::FittedAutoETS,
     seasons::{Detector, PeriodogramDetector},
 };
 
@@ -102,18 +103,65 @@ pub fn jumps_in_series(
     v
 }
 
-/// detect seasonality
-pub fn seasonality(y: &Vec<f64>, min_period: u32, max_period: u32, threshold: f64) -> Vec<usize> {
-    // Use the detector with default parameters.
-    //let periods_u32 = PeriodogramDetector::default().detect(y);
+pub fn recurring_events_in_series(
+    symbol: &str, 
+    timestamps: &Vec<i64>, 
+    series: &Vec<f64>, 
+    threshold: f64, 
+) -> Vec<crate::data::sql::RecurringEventData> 
+{
+    let mut v = Vec::new();
+    if timestamps.len() < 2 {
+        return v;
+    }
+    let time_diff = (timestamps[1] - timestamps[0]) / 60 / 1000; // in minutes
+    let periods = seasonality(series, 3, 300, threshold, false);
+    for p in periods {
+        let minutes_period= time_diff * p as i64;
+        let s = crate::data::sql::RecurringEventData {
+            symbol: symbol.to_string(),
+            minutes_period,
+            time_scale: time_diff as f64,
+            ..Default::default()
+        };
+        v.push(s);
+    }
 
+    v
+}
+
+/// detect seasonality
+pub fn _seasonality_default(series: &Vec<f64>, smooth: bool) -> Vec<usize> {
+    let data;
+    if smooth {
+        data = smooth_series(series, 5);
+    } else {
+        data = series.clone();
+    }
+    // Use the detector with default parameters.
+    let periods_u32 = PeriodogramDetector::default().detect(&data);
+    let mut periods = Vec::new();
+    for u in periods_u32 {
+        periods.push(u as usize);
+    }
+    periods
+}
+
+/// detect seasonality with optional parameters
+pub fn seasonality(series: &Vec<f64>, min_period: u32, max_period: u32, threshold: f64, smooth: bool) -> Vec<usize> {
+    let data;
+    if smooth {
+        data = smooth_series(series, 5);
+    } else {
+        data = series.clone();
+    }
     // Customise the detector using the builder.
     let periods_u32 = PeriodogramDetector::builder()
         .min_period(min_period)
         .max_period(max_period)
         .threshold(threshold)
         .build()
-        .detect(y);
+        .detect(&data);
     let mut periods = Vec::new();
     for u in periods_u32 {
         periods.push(u as usize);
@@ -122,7 +170,7 @@ pub fn seasonality(y: &Vec<f64>, min_period: u32, max_period: u32, threshold: f6
 }
 
 // generate a new series where every five entries will be averaged
-pub fn smooth_series(series: &Vec<f64>) -> Vec<f64> {
+pub fn smooth_series(series: &Vec<f64>, num_elements_to_average: u32) -> Vec<f64> {
     let mut data;
     let mut average= 0.0;
     let mut num_elements = 0;
@@ -130,7 +178,7 @@ pub fn smooth_series(series: &Vec<f64>) -> Vec<f64> {
     for i in 0..data.len() {
         average += series[i];
         num_elements += 1;
-        if num_elements % 5 == 0 {
+        if num_elements % num_elements_to_average == 0 {
             data.push(average / num_elements as f64);
             average = 0.0;
             num_elements = 0;
@@ -149,13 +197,28 @@ pub fn changepoints(series: &Vec<f64>, smooth: bool) -> Vec<usize> {
     //let periods_u32 = PeriodogramDetector::default().detect(y);
     let data;
     if smooth {
-        data = smooth_series(series);
+        data = smooth_series(series, 5);
     } else {
         data = series.clone();
     }
     DefaultArgpcpDetector::default().detect_changepoints(&data)
 }
 
-
-// split series into chunks
+/// split series into chunks
+pub fn split_series_into_seasons(series: &Vec<f64>, event: crate::data::sql::RecurringEventData) -> Vec<Vec<f64>> {
+    let mut v = Vec::new();
+    let pivot = event.minutes_period / event.time_scale as i64;
+    let mut count = 0;
+    let mut w = Vec::new();
+    for f in series {
+        w.push(f.to_owned());
+        count += 1;
+        if count % pivot == 0 {
+            v.push(w.clone());
+            w.clear();
+            count = 0;
+        }
+    }
+    v
+}
 
