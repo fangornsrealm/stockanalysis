@@ -53,7 +53,7 @@ pub fn live_data_count(
     num
 }
 
-pub fn live_data(
+pub fn live_data_all(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
 ) -> Vec<super::TimeSeriesData> {
@@ -69,6 +69,105 @@ pub fn live_data(
     match connection.prepare(query) {
         Ok(mut statement) => {
             match statement.query(params![&metadata.symbol]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => {
+                                let mut s = super::TimeSeriesData {
+                                    ..Default::default()
+                                };
+                                match row.get(0) {
+                                    Ok(val) => s.datetime = val,
+                                    Err(error) => {
+                                        log::error!(
+                                            "Failed to read datetime for live_data: {}",
+                                            error
+                                        );
+                                        continue;
+                                    }
+                                }
+                                match row.get(1) {
+                                    Ok(val) => s.open = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read open for live_data: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(2) {
+                                    Ok(val) => s.high = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read high for live_data: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(3) {
+                                    Ok(val) => s.low = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read low for live_data: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(4) {
+                                    Ok(val) => s.close = val,
+                                    Err(error) => {
+                                        log::error!(
+                                            "Failed to read close for live_data: {}",
+                                            error
+                                        );
+                                        continue;
+                                    }
+                                }
+                                match row.get(5) {
+                                    Ok(val) => s.volume = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read volume for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                t.push(s);
+                            }
+                            Ok(None) => {
+                                //log::warn!("No data read from indices.");
+                                break;
+                            }
+                            Err(error) => {
+                                log::error!("Failed to read a row from live_data: {}", error);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    log::error!("could not read line from live_data database: {}", err);
+                }
+            }
+        }
+        Err(err) => {
+            log::error!("could not prepare SQL statement: {}", err);
+        }
+    }
+
+    t
+}
+
+pub fn live_data(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    metadata: &super::MetaData,
+) -> Vec<super::TimeSeriesData> {
+    let mut t = Vec::new();
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return t;
+        }
+    };
+    let start = metadata.start_date.timestamp();
+    let end = metadata.end_date.timestamp();
+    let query = "SELECT timestamp, open, high, low, close, volume FROM live_data WHERE symbol = ?1 AND timestamp BETWEEN ?2 AND ?3 ORDER BY timestamp ASC";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![&metadata.symbol, &start, &end]) {
                 Ok(mut rows) => {
                     loop {
                         match rows.next() {

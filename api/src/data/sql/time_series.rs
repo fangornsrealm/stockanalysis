@@ -52,6 +52,100 @@ pub fn timeseries_count(
     num
 }
 
+pub fn timeseries_all(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    metadata: &super::MetaData,
+) -> Vec<super::TimeSeriesData> {
+    let mut t = Vec::new();
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return t;
+        }
+    };
+    let query = "SELECT timestamp, open, high, low, close, volume FROM time_series WHERE symbol = ?1 ORDER BY timestamp ASC";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![&metadata.symbol]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => {
+                                let mut s = super::TimeSeriesData {
+                                    ..Default::default()
+                                };
+                                match row.get(0) {
+                                    Ok(val) => s.datetime = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read datetime for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(1) {
+                                    Ok(val) => s.open = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read open for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(2) {
+                                    Ok(val) => s.high = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read high for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(3) {
+                                    Ok(val) => s.low = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read low for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(4) {
+                                    Ok(val) => s.close = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read close for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                match row.get(4) {
+                                    Ok(val) => s.volume = val,
+                                    Err(error) => {
+                                        log::error!("Failed to read volume for file: {}", error);
+                                        continue;
+                                    }
+                                }
+                                t.push(s);
+                            }
+                            Ok(None) => {
+                                //log::warn!("No data read from indices.");
+                                break;
+                            }
+                            Err(error) => {
+                                log::error!("Failed to read a row from indices: {}", error);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    log::error!(
+                        "could not read line from videostore_indices database: {}",
+                        err
+                    );
+                }
+            }
+        }
+        Err(err) => {
+            log::error!("could not prepare SQL statement: {}", err);
+        }
+    }
+
+    t
+}
+
 pub fn timeseries(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
