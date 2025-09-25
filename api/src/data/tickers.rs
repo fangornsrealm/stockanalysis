@@ -80,14 +80,8 @@ impl TickersData for Tickers {
     /// Fetch the OHLCV Data for all tickers in the Tickers Struct
     async fn get_chart(&self) -> Result<DataFrame, Box<dyn Error>> {
         let mut results = Vec::new();
-        let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
-                    .and_utc();
-        let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
-                    .and_utc();
         for ticker in self.tickers.clone().into_iter() {
-            let fut = match ticker.get_chart_daily(start_date, end_date).await {
+            let fut = match ticker.get_chart_daily().await {
                 Ok(chart) => {
                     Ok(chart)
                 }

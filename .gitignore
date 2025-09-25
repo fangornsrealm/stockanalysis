@@ -2,7 +2,6 @@
 /api/target
 /testexample/target
 /daemon/target
-/testexample/*.html
-/testexample/*.txt
+/testexample/testfiles
 *.html
 *.txt

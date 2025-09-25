@@ -34,7 +34,9 @@ pub struct OptionsTables {
 
 pub trait TickerCharts {
     fn ohlcv_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn ohlcv_table_live(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn candlestick_chart_live(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
@@ -52,13 +54,43 @@ impl TickerCharts for Ticker {
     ///
     /// * `DataTable` - Interactive Table Chart struct
     async fn ohlcv_table(&self) -> Result<DataTable, Box<dyn Error>> {
-        let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
-                    .and_utc();
-        let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
-                    .and_utc();
-        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
+        let ohlcv = self.get_chart_daily().await?;
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(df) => df,
+            Err(error) => {
+                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let datetimes = datetimes.iter().map(|x| x.date().to_string()).collect::<Vec<String>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let adjclose = ohlcv.column("adjclose")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let df = df!(
+            "timestamp" => datetimes,
+            "open" => open,
+            "high" => high,
+            "low" => low,
+            "close" => close,
+            "volume" => volume,
+            "adjclose" => adjclose,
+        )?;
+
+        let table = df.to_datatable("df", true, DataTableFormat::Number);
+        Ok(table)
+    }
+
+    async fn ohlcv_table_live(&self) -> Result<DataTable, Box<dyn Error>> {
+        let ohlcv = self.get_chart().await?;
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
             Err(error) => {
@@ -104,13 +136,132 @@ impl TickerCharts for Ticker {
     ///
     /// * `Plot` Plotly Chart struct
     async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
-        let start_date = chrono::NaiveDate::parse_from_str(&self.start_date, "%Y-%m-%d")?
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
-                    .and_utc();
-        let end_date = chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d")?
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
-                    .and_utc();
-        let ohlcv = self.get_chart_daily(start_date, end_date).await?;
+        let ohlcv = self.get_chart_daily().await?;
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(df) => df,
+            Err(error) => {
+                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.date().to_string()).collect::<Vec<String>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let rsi_df = self.rsi(14, None).await?;
+        let rsi_values = rsi_df.column("rsi-14")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ma_50_df = self.sma(50, None).await?;
+        let ma_50_values = ma_50_df.column("sma-50")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ma_200_df = self.sma(200, None).await?;
+        let ma_200_values = ma_200_df.column("sma-200")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
+            .name("Prices");
+        let volume_trace = Bar::new(x.clone(), volume)
+            .name("Volume")
+            //.marker(Marker::new().color(NamedColor::Blue))
+            .x_axis("x")
+            .y_axis("y2");
+        let rsi_trace = Scatter::new(x.clone(), rsi_values)
+            .name("RSI 14")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let ma50_trace = Scatter::new(x.clone(), ma_50_values)
+            .name("MA 50")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+        let ma200_trace = Scatter::new(x.clone(), ma_200_values)
+            .name("MA 200")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+
+        let layout = Layout::new()
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", self.ticker))
+            .grid(
+                LayoutGrid::new()
+                    .rows(3)
+                    .columns(1)
+                    .pattern(GridPattern::Coupled)
+                    .row_order(RowOrder::TopToBottom)
+            )
+            .x_axis(
+                Axis::new()
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(vec![
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1H")
+                            .step(SelectorStep::Hour)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1D")
+                            .step(SelectorStep::Day)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(6)
+                            .label("6M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("YTD")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::ToDate),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1Y")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .label("MAX")
+                            .step(SelectorStep::All),
+                    ])),
+            )
+            .y_axis(
+                Axis::new()
+                    .domain(&[0.4, 1.0])
+            )
+            .y_axis2(
+                Axis::new()
+                    .domain(&[0.2, 0.4])
+            )
+            .y_axis3(
+                Axis::new()
+                    .domain(&[0.0, 0.2])
+            );
+
+        let mut plot = Plot::new();
+        plot.add_trace(Box::new(candlestick_trace));
+        plot.add_trace(volume_trace);
+        plot.add_trace(ma50_trace);
+        plot.add_trace(ma200_trace);
+        plot.add_trace(rsi_trace);
+        
+        let plot = set_layout(plot, layout, height, width);
+
+        Ok(plot)
+
+    }
+
+    async fn candlestick_chart_live(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+        let ohlcv = self.get_chart().await?;
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
             Err(error) => {
