@@ -40,7 +40,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
         Ok(chart) => {
             let file_name = "opt_chart.jpg".to_string();
             let path = filepath.clone().join(file_name);
-            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
 
             let file_name = "opt_chart.html";
             let path = filepath.clone().join(file_name);
@@ -69,7 +69,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
         Ok(chart) => {
             let file_name = "perf_chart.jpg".to_string();
             let path = filepath.clone().join(file_name);
-            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
 
             let file_name = "perf_chart.html";
             let path = filepath.clone().join(file_name);
@@ -143,7 +143,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
         Ok(chart) => {
             let file_name = "returns_chart.jpg".to_string();
             let path = filepath.clone().join(file_name);
-            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
 
             let file_name = "returns_chart.html";
             let path = filepath.clone().join(file_name);
@@ -171,7 +171,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
         Ok(chart) => {
             let file_name = "returns_matrix.jpg".to_string();
             let path = filepath.clone().join(file_name);
-            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
 
             let file_name = "returns_matrix.html";
             let path = filepath.clone().join(file_name);
@@ -230,7 +230,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 let mut file_name = stock_symbol.clone();
                 file_name.extend("_chart.jpg".chars());
                 let path = filepath.clone().join(file_name);
-                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
                 let html = pl.to_html();
                 let mut file_name = stock_symbol.clone();
                 file_name.extend("_chart.html".chars());
@@ -247,7 +247,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 let mut file_name = stock_symbol.clone();
                 file_name.extend("_chart_live.jpg".chars());
                 let path = filepath.clone().join(file_name);
-                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
                 let html = pl.to_html();
                 let mut file_name = stock_symbol.clone();
                 file_name.extend("_chart_live.html".chars());
