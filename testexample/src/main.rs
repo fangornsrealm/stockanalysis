@@ -201,7 +201,12 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
             std::process::exit(1);
         },
     };
-    let end_date = chrono::Utc::now();
+    let end_date = chrono::Utc::now()
+        .date_naive()
+        .and_time(
+            chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0)
+            .unwrap()
+        ).and_utc();
 
     for i in 0..symbols.len() {
         let stock_symbol = symbols[i].to_string();
@@ -213,15 +218,14 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
             .interval(Interval::OneDay)
             .build();
 
-        let df = ticker.get_chart_daily(start_date.clone(), end_date.clone()).await?;
+        let df = ticker.get_chart_daily().await?;
         let table = df.to_datatable("ohlcv", true, DataTableFormat::Number);
         let html = table.to_html()?;
         let mut file_name = stock_symbol.clone();
         file_name.extend(".html".chars());
         let path = filepath.clone().join(file_name);
         std::fs::write(&path, &html).expect("Should be able to write to file");
-
-        match ticker.candlestick_chart(Some(200), Some(300)).await {
+        match ticker.candlestick_chart(None, None).await {
             Ok(pl) => {
                 let mut file_name = stock_symbol.clone();
                 file_name.extend("_chart.jpg".chars());
@@ -230,6 +234,23 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 let html = pl.to_html();
                 let mut file_name = stock_symbol.clone();
                 file_name.extend("_chart.html".chars());
+                let path = filepath.clone().join(file_name);
+                std::fs::write(&path, &html).expect("Should be able to write to file");
+            },
+            Err(error) => {
+                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                continue;
+            },
+        }
+        match ticker.candlestick_chart_live(None, None).await {
+            Ok(pl) => {
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart_live.jpg".chars());
+                let path = filepath.clone().join(file_name);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+                let html = pl.to_html();
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart_live.html".chars());
                 let path = filepath.clone().join(file_name);
                 std::fs::write(&path, &html).expect("Should be able to write to file");
             },
