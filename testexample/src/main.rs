@@ -20,14 +20,14 @@ pub fn osstr_to_string(osstr: std::ffi::OsString) -> String {
     String::new()
 }
 
-pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), Box<dyn Error>> {
+pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std::path::PathBuf) -> Result<(), Box<dyn Error>> {
 
     let testportfolio = portfolio.clone();
     let opt_chart = 
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.optimization_chart(None, None).map_err(|e| format!("Optimization Chart error: {e}")).unwrap().to_html();
+                portfolio.optimization_chart(None, None).map_err(|e| format!("Optimization Chart error: {e}")).unwrap();
 
             Ok(chart)
         },
@@ -37,7 +37,15 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         }
     };
     match opt_chart {
-        Ok(chart) => std::fs::write("opt_chart.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            let file_name = "opt_chart.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+
+            let file_name = "opt_chart.html";
+            let path = filepath.clone().join(file_name);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
@@ -48,7 +56,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.performance_chart(None, None).map_err(|e| format!("Performance Chart error: {e}")).unwrap().to_html();
+                portfolio.performance_chart(None, None).map_err(|e| format!("Performance Chart error: {e}")).unwrap();
 
             Ok(chart)
         }
@@ -58,7 +66,15 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         }
     };
     match perf_chart {
-        Ok(chart) => std::fs::write("perf_chart.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            let file_name = "perf_chart.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+
+            let file_name = "perf_chart.html";
+            let path = filepath.clone().join(file_name);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
@@ -69,7 +85,8 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.performance_stats_table().await.map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap();            Ok(chart)
+                portfolio.performance_stats_table().await.map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap();
+                Ok(chart)
         }
         Err(e) => {
             log::error!("Failed to get portfolio: {e}");
@@ -77,7 +94,11 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         }
     };
     match perf_stats_chart {
-        Ok(chart) => std::fs::write("perf_stats_chart.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            let file_name = "performance_stats_table.html";
+            let path = filepath.clone().join(file_name);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
@@ -88,15 +109,18 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.returns_table().map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html().unwrap();            Ok(chart)
+                portfolio.returns_table().map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html().unwrap();            
+                Ok(chart)
         }
         Err(e) => {
             log::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
+    let file_name = "returns_table.html";
+    let path = filepath.clone().join(file_name);
     match returns_table {
-        Ok(chart) => std::fs::write("returns_table.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
         Err(e) => {
             log::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
@@ -107,7 +131,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.returns_chart(None, None).map_err(|e| format!("Returns Chart error: {e}")).unwrap().to_html();
+                portfolio.returns_chart(None, None).map_err(|e| format!("Returns Chart error: {e}")).unwrap();
             Ok(chart)
         }
         Err(e) => {
@@ -116,7 +140,15 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         }
     };
     match returns_chart {
-        Ok(chart) => std::fs::write("returns_chart.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            let file_name = "returns_chart.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+
+            let file_name = "returns_chart.html";
+            let path = filepath.clone().join(file_name);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
@@ -127,7 +159,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.returns_matrix(None, None).map_err(|e| format!("Returns Matrix error: {e}")).unwrap().to_html();
+                portfolio.returns_matrix(None, None).map_err(|e| format!("Returns Matrix error: {e}")).unwrap();
             Ok(chart)
         }
         Err(e) => {
@@ -136,7 +168,15 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
         }
     };
     match returns_matrix {
-        Ok(chart) => std::fs::write("returns_matrix.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            let file_name = "returns_matrix.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+
+            let file_name = "returns_matrix.html";
+            let path = filepath.clone().join(file_name);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
@@ -145,25 +185,67 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>) -> Result<(), 
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let logfile = "stock_analysis.txt".to_string();
+async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn Error>> {
+    // get a list of symbols from the database
+    let sql_connection = api::data::sql::connect();
+    let symbolsstrings = api::data::sql::active_symbols(sql_connection.clone());
 
-    CombinedLogger::init(vec![
-        TermLogger::new(
-            LevelFilter::Error,
-            Config::default(),
-            TerminalMode::Mixed,
-            ColorChoice::Auto,
-        ),
-        WriteLogger::new(
-            LevelFilter::Debug,
-            Config::default(),
-            File::create(&logfile).unwrap(),
-        ),
-    ])
-    .unwrap();
+    // 
+    let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
     
+    let mut tickers = Vec::new();
+    let start_date = match NaiveDateTime::parse_from_str("2025-03-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
+        Ok(dt) => dt.and_utc(),
+        Err(error) => {
+            log::error!("Failed to parse fixed datetime!: {}", error);
+            std::process::exit(1);
+        },
+    };
+    let end_date = chrono::Utc::now();
+
+    for i in 0..symbols.len() {
+        let stock_symbol = symbols[i].to_string();
+        let ticker = api::models::ticker::TickerBuilder::new()
+            .ticker(&stock_symbol)
+            .start_date(&start_date.naive_utc().to_string())
+            .end_date(&end_date.naive_utc().to_string())
+            .benchmark_symbol("0H1C")
+            .interval(Interval::OneDay)
+            .build();
+
+        let df = ticker.get_chart_daily(start_date.clone(), end_date.clone()).await?;
+        let table = df.to_datatable("ohlcv", true, DataTableFormat::Number);
+        let html = table.to_html()?;
+        let mut file_name = stock_symbol.clone();
+        file_name.extend(".html".chars());
+        let path = filepath.clone().join(file_name);
+        std::fs::write(&path, &html).expect("Should be able to write to file");
+
+        match ticker.candlestick_chart(Some(200), Some(300)).await {
+            Ok(pl) => {
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart.jpg".chars());
+                let path = filepath.clone().join(file_name);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 600, 400, 1.0);
+                let html = pl.to_html();
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart.html".chars());
+                let path = filepath.clone().join(file_name);
+                std::fs::write(&path, &html).expect("Should be able to write to file");
+            },
+            Err(error) => {
+                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                continue;
+            },
+        }
+        //println!("{}", html);
+        tickers.push(ticker);
+        //table.show()?;
+    }
+    Ok(())
+}
+
+async fn test_screeners(filepath: &std::path::PathBuf)  -> Result<(), Box<dyn Error>> {
     // old and modifined functionality
     
     // Screen for Large-Cap NASDAQ Stocks
@@ -181,18 +263,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build()
         .await?;
 
+    let file_name = "screener_overview.html";
+    let path = filepath.clone().join(file_name);
     let overview = screener.overview().to_html();
     match overview {
-        Ok(chart) => std::fs::write("screener_overview.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
         Err(e) => {
             log::error!("Failed to get overview for screener: {e}");
             return Ok(());
         }
     }
 
+    let file_name = "screener_metrics.html";
+    let path = filepath.clone().join(file_name);
     let metrics = screener.metrics().await?.to_html();
     match metrics {
-        Ok(chart) => std::fs::write("screener_metrics.html", &chart).expect("Should be able to write to file"),
+        Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
         Err(e) => {
             log::error!("Failed to get metrics for screener: {e}");
             return Ok(());
@@ -217,25 +303,67 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let symbol = ticker_symbols.first().unwrap();
     let ticker = tickers.clone().get_ticker(symbol).await?;
     let performance = ticker.report(Some(ReportType::Performance)).await?.to_html();
-    std::fs::write("screener_performance.html", &performance).expect("Should be able to write to file");
+    let file_name = "screener_performance.html";
+    let path = filepath.clone().join(file_name);
+    std::fs::write(&osstr_to_string(path.into_os_string()), &performance).expect("Should be able to write to file");
     let financials = ticker.report(Some(ReportType::Financials)).await?.to_html();
-    std::fs::write("screener_financials.html", &financials).expect("Should be able to write to file");
+    let file_name = "screener_financials.html";
+    let path = filepath.clone().join(file_name);
+    std::fs::write(&osstr_to_string(path.into_os_string()), &financials).expect("Should be able to write to file");
     let options = ticker.report(Some(ReportType::Options)).await?.to_html();
-    std::fs::write("screener_options.html", &options).expect("Should be able to write to file");
+    let file_name = "screener_options.html";
+    let path = filepath.clone().join(file_name);
+    std::fs::write(&osstr_to_string(path.into_os_string()), &options).expect("Should be able to write to file");
     let news = ticker.report(Some(ReportType::News)).await?.to_html();
-    std::fs::write("screener_news.html", &news).expect("Should be able to write to file");
+    let file_name = "screescreener_newsner_overview.html";
+    let path = filepath.clone().join(file_name);
+    std::fs::write(&osstr_to_string(path.into_os_string()), &news).expect("Should be able to write to file");
 
     // Generate a Multiple Ticker Report
     let report = tickers.report(Some(ReportType::Performance)).await?.to_html();
-    std::fs::write("screener_report.html", &report).expect("Should be able to write to file");
+    let file_name = "screener_report.html";
+    let path = filepath.clone().join(file_name);
+    std::fs::write(&osstr_to_string(path.into_os_string()), &report).expect("Should be able to write to file");
 
     // Perform a Portfolio Optimization
     let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
 
     // Generate a Portfolio Report
     let portfolioreport = portfolio.report(Some(ReportType::Performance)).await?.to_html();
-    std::fs::write("screener_portfolioreport.html", &portfolioreport).expect("Should be able to write to file");
+    let file_name = "screener_portfolioreport.html";
+    let path = filepath.clone().join(file_name);
+    std::fs::write(&osstr_to_string(path.into_os_string()), &portfolioreport).expect("Should be able to write to file");
     // new functionality
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let logfile = "stock_analysis.txt".to_string();
+
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            LevelFilter::Error,
+            Config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Debug,
+            Config::default(),
+            File::create(&logfile).unwrap(),
+        ),
+    ])
+    .unwrap();
+
+    let filepath = std::path::PathBuf::from("testfiles");
+    if !filepath.is_dir() {
+        std::fs::create_dir(filepath.clone())?;
+    }
+
+    let _ret = test_ticker_data(&filepath).await;
+    
+    let _ret = test_screeners(&filepath).await;
 
     // get a list of symbols from the database
     let sql_connection = api::data::sql::connect();
@@ -243,45 +371,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // 
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
-    
-    let mut tickers = Vec::new();
-    let start_date = match NaiveDateTime::parse_from_str("2025-03-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
-        Ok(dt) => dt.and_utc(),
-        Err(error) => {
-            log::error!("Failed to parse fixed datetime!: {}", error);
-            std::process::exit(1);
-        },
-    };
-    //let end_date = chrono::Utc::now();
-    let end_date = match NaiveDateTime::parse_from_str("2025-09-15 00:00:00", "%Y-%m-%d %H:%M:%S") {
-        Ok(dt) => dt.and_utc(),
-        Err(error) => {
-            log::error!("Failed to parse fixed datetime!: {}", error);
-            std::process::exit(1);
-        },
-    };
-
-    for i in 0..symbols.len() {
-        let stock_symbol = symbols[i].to_string();
-        let ticker = api::models::ticker::TickerBuilder::new()
-            .ticker(&stock_symbol)
-            .start_date(&start_date.naive_utc().to_string())
-            .end_date(&end_date.naive_utc().to_string())
-            .benchmark_symbol("0H1C")
-            .interval(Interval::OneDay)
-            .build();
-
-        let df = ticker.get_chart_daily(start_date.clone(), end_date.clone()).await?;
-        let table = df.to_datatable("ohlcv", true, DataTableFormat::Number);
-        let html = table.to_html()?;
-        let mut file_name = stock_symbol.clone();
-        file_name.extend(".html".chars());
-        std::fs::write(&file_name, &html).expect("Should be able to write to file");
-        //println!("{}", html);
-        tickers.push(ticker);
-        //table.show()?;
-    }
-
     let portfolio: Result<Portfolio, String> = Portfolio::builder()
             .ticker_symbols(symbols.clone())
             .benchmark_symbol("0H1C")
@@ -294,7 +383,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .build()
             .await
             .map_err(|e| format!("PortfolioBuilder error: {e}"));
-    test_portfolio(portfolio).await.unwrap();
+    test_portfolio(portfolio, &filepath).await.unwrap();
     
     Ok(())
 }
