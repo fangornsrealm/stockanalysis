@@ -139,7 +139,7 @@ impl PortfolioPerformanceStats {
         let _=  portfolio_returns.insert_column(0, Series::new("timestamp".into(), portfolio_dates))?;
 
         let benchmark_returns_timestamp = benchmark_ticker.roc(1, Some(Column::AdjClose)).await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_to_datetime_vec(benchmark_returns_timestamp.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(benchmark_returns_timestamp.clone()) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
