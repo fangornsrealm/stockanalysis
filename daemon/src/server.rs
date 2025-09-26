@@ -1,3 +1,4 @@
+use polars::prelude::*;
 use chrono::{Datelike, NaiveTime, offset::Local, Timelike};
 use eyre::{bail, ensure, Result as EyreResult, WrapErr as _};
 use structopt::StructOpt;
@@ -57,7 +58,24 @@ pub fn run_analysis_on_updated_dataframe(
             start_date,
             end_date,
         ) {
-            Ok(df) => df,
+            Ok(vec) => {
+                if vec.len() == 0 {
+                    continue;
+                }
+                let mut df = vec[0].clone();
+                if vec.len() > 1 {
+                    for i in 1..vec.len() {
+                        df = concat([df.lazy(), vec[i].clone().lazy()], UnionArgs::default()).unwrap().collect().unwrap();
+                    }
+                }
+                if df.height() > 0 {
+                    df
+                } else {
+                    // no entries in database or symbol not found, search yahoo instead
+                    continue;
+                }
+
+            },
             Err(e) => {
                 log::error!("Failed to get dataframe from database for symbol {}: {}", symbol, e);
                 continue;
@@ -70,7 +88,7 @@ pub fn run_analysis_on_updated_dataframe(
                 continue;
             }
         };
-        let datetimes = match api::data::sql::to_dataframe::i64_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);

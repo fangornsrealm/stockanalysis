@@ -210,7 +210,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
 
     for i in 0..symbols.len() {
         let stock_symbol = symbols[i].to_string();
-        let ticker = api::models::ticker::TickerBuilder::new()
+        let mut ticker = api::models::ticker::TickerBuilder::new()
             .ticker(&stock_symbol)
             .start_date(&start_date.naive_utc().to_string())
             .end_date(&end_date.naive_utc().to_string())
@@ -242,6 +242,21 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 continue;
             },
         }
+        let start_date = chrono::Utc::now()
+        .date_naive()
+        .and_time(
+            chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0)
+            .unwrap()
+        ).and_utc();
+
+        let end_date = chrono::Utc::now()
+        .date_naive()
+        .and_time(
+            chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0)
+            .unwrap()
+        ).and_utc();
+        ticker.start_date = start_date.naive_utc().to_string();
+        ticker.end_date = end_date.naive_utc().to_string();
         match ticker.candlestick_chart_live(None, None).await {
             Ok(pl) => {
                 let mut file_name = stock_symbol.clone();
@@ -382,9 +397,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         std::fs::create_dir(filepath.clone())?;
     }
 
+    let _ret = test_screeners(&filepath).await;
+
     let _ret = test_ticker_data(&filepath).await;
     
-    let _ret = test_screeners(&filepath).await;
 
     // get a list of symbols from the database
     let sql_connection = api::data::sql::connect();

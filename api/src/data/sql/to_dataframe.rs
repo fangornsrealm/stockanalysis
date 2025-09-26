@@ -73,60 +73,63 @@ pub fn ohlcv_to_dataframe(
     stock_symbol: &str,
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
-) -> Result<DataFrame, Box<dyn Error>> {
+) -> Result<Vec<DataFrame>, Box<dyn Error>> {
+    let mut v = Vec::new();
     let exchange_code = "XFRA";
     let mut metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
     metadata.start_date = start_date.clone().and_utc();
     metadata.end_date = end_date.clone().and_utc();
-    let series: Vec<super::TimeSeriesData> = super::live_data::live_data(sql_connection.clone(), &metadata);
-    // timestamps are expected to be number of milliseconds since 1.1. 1970.
-    let timestamp = series
-        .iter()
-        .map(|o| o.datetime * 1000)
-        .collect::<Vec<i64>>();
+    let serieses = super::live_data::live_data(sql_connection.clone(), &metadata);
+    for series in serieses {
+        // timestamps are expected to be number of milliseconds since 1.1. 1970.
+        let timestamp = series
+            .iter()
+            .map(|o| o.datetime * 1000)
+            .collect::<Vec<i64>>();
 
-    let open = series.iter().map(|o| o.open).collect::<Vec<f64>>();
+        let open = series.iter().map(|o| o.open).collect::<Vec<f64>>();
 
-    let high = series.iter().map(|o| o.high).collect::<Vec<f64>>();
+        let high = series.iter().map(|o| o.high).collect::<Vec<f64>>();
 
-    let low = series.iter().map(|o| o.low).collect::<Vec<f64>>();
+        let low = series.iter().map(|o| o.low).collect::<Vec<f64>>();
 
-    let close = series.iter().map(|o| o.close).collect::<Vec<f64>>();
+        let close = series.iter().map(|o| o.close).collect::<Vec<f64>>();
 
-    let volume = series.iter().map(|o| o.volume).collect::<Vec<f64>>();
+        let volume = series.iter().map(|o| o.volume).collect::<Vec<f64>>();
 
-    let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
+        let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
 
-    let df = df!(
-        "timestamp" => &timestamp,
-        "open" => &open,
-        "high" => &high,
-        "low" => &low,
-        "close" => &close,
-        "volume" => &volume,
-        "adjclose" => &adjclose
-    )?;
+        let df = df!(
+            "timestamp" => &timestamp,
+            "open" => &open,
+            "high" => &high,
+            "low" => &low,
+            "close" => &close,
+            "volume" => &volume,
+            "adjclose" => &adjclose
+        )?;
 
-    // check if any adjclose values are 0.0
-    let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
-    let df = df.filter(&mask)?;
+        // check if any adjclose values are 0.0
+        let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
+        let df = df.filter(&mask)?;
 
-    // check id any returned dates smaller than start date or greater than end date
-    match i64_column_to_datetime_vec(df.clone()) {
-        Ok(dt) => {
-            let mask = dt.iter()
-                .map(|x| {
-                    &start_date < x && x < &end_date
-                })
-                .collect();
-            let df = df.filter(&mask)?;
-            return Ok(df);
-        }
-        Err(error) => {
-            log::error!("Unable to turn timestamps into dates to create a date filter mask! {:?}", error);
+        // check if any returned dates smaller than start date or greater than end date
+        match i64_column_to_datetime_vec(df.clone()) {
+            Ok(dt) => {
+                let mask = dt.iter()
+                    .map(|x| {
+                        &start_date < x && x < &end_date
+                    })
+                    .collect();
+                let df = df.filter(&mask)?;
+                v.push(df);
+            }
+            Err(error) => {
+                log::error!("Unable to turn timestamps into dates to create a date filter mask! {:?}", error);
+            }
         }
     }
-    Ok(df)
+    Ok(v)
 }
 
 /// Returns the Ticker OHLCV Data from the database for a given time range

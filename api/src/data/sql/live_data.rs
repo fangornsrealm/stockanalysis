@@ -150,7 +150,123 @@ pub fn live_data_all(
     t
 }
 
+fn timestamps_daily(start_date: &chrono::DateTime<chrono::Utc>, offset: i64) -> (i64, i64) {
+    let day = match start_date.checked_add_days(chrono::Days::new(offset as u64)) {
+        Some(d) => d,
+        None => return (0,0),
+    }.date_naive();
+    let start_time = day.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap());
+    let end_time = day.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23*3600 + 59*60, 0).unwrap());
+    (start_time.and_utc().timestamp(), end_time.and_utc().timestamp())
+}
+
 pub fn live_data(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    metadata: &super::MetaData,
+) -> Vec<Vec<super::TimeSeriesData>> {
+    let mut v = Vec::new();
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("Failed to lock sql connection for use! {}", error);
+            return v;
+        }
+    };
+    let num_days = (metadata.end_date - metadata.start_date).num_days();
+    for i in 0..num_days {
+        let mut t = Vec::new();
+        let (start, end) = timestamps_daily(&metadata.start_date, i);
+        if start == 0 && end == 0 {
+            continue;
+        }
+        let query = "SELECT timestamp, open, high, low, close, volume FROM live_data WHERE symbol = ?1 AND timestamp BETWEEN ?2 AND ?3 ORDER BY timestamp ASC";
+        match connection.prepare(query) {
+            Ok(mut statement) => {
+                match statement.query(params![&metadata.symbol, &start, &end]) {
+                    Ok(mut rows) => {
+                        loop {
+                            match rows.next() {
+                                Ok(Some(row)) => {
+                                    let mut s = super::TimeSeriesData {
+                                        ..Default::default()
+                                    };
+                                    match row.get(0) {
+                                        Ok(val) => s.datetime = val,
+                                        Err(error) => {
+                                            log::error!(
+                                                "Failed to read datetime for live_data: {}",
+                                                error
+                                            );
+                                            continue;
+                                        }
+                                    }
+                                    match row.get(1) {
+                                        Ok(val) => s.open = val,
+                                        Err(error) => {
+                                            log::error!("Failed to read open for live_data: {}", error);
+                                            continue;
+                                        }
+                                    }
+                                    match row.get(2) {
+                                        Ok(val) => s.high = val,
+                                        Err(error) => {
+                                            log::error!("Failed to read high for live_data: {}", error);
+                                            continue;
+                                        }
+                                    }
+                                    match row.get(3) {
+                                        Ok(val) => s.low = val,
+                                        Err(error) => {
+                                            log::error!("Failed to read low for live_data: {}", error);
+                                            continue;
+                                        }
+                                    }
+                                    match row.get(4) {
+                                        Ok(val) => s.close = val,
+                                        Err(error) => {
+                                            log::error!(
+                                                "Failed to read close for live_data: {}",
+                                                error
+                                            );
+                                            continue;
+                                        }
+                                    }
+                                    match row.get(5) {
+                                        Ok(val) => s.volume = val,
+                                        Err(error) => {
+                                            log::error!("Failed to read volume for file: {}", error);
+                                            continue;
+                                        }
+                                    }
+                                    t.push(s);
+                                }
+                                Ok(None) => {
+                                    //log::warn!("No data read from indices.");
+                                    break;
+                                }
+                                Err(error) => {
+                                    log::error!("Failed to read a row from live_data: {}", error);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("could not read line from live_data database: {}", err);
+                    }
+                }
+            }
+            Err(err) => {
+                log::error!("could not prepare SQL statement: {}", err);
+            }
+        }
+        v.push(t);
+    }
+
+    v
+}
+
+pub fn all_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
 ) -> Vec<super::TimeSeriesData> {
@@ -254,7 +370,7 @@ pub fn insert_live_data(
     metadata: &super::MetaData,
     series: &market_data::EnhancedMarketSeries,
 ) -> Vec<super::TimeSeriesData> {
-    let existing = live_data(sql_connection.clone(), metadata);
+    let existing = all_live_data(sql_connection.clone(), metadata);
     let exists: std::collections::BTreeSet<i64> = existing.iter().map(|t| t.datetime).collect();
     let mut v = Vec::new();
     let connection = match sql_connection.lock() {

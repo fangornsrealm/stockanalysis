@@ -52,9 +52,25 @@ impl TickerData for Ticker {
                     .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
                     .and_utc();
             match super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date.naive_utc(), end_date.naive_utc()) {
-                Ok(ohlcv) => {
-                    if ohlcv.height() > 0 {
-                        return Ok(ohlcv);
+                Ok(vec) => {
+                    if vec.len() == 0 {
+                        // no entries in database or symbol not found, search yahoo instead
+                        let yahoo_ohlcv = yahoo::api::get_chart(
+                            &self.ticker, 
+                            &start_date.to_string(), 
+                            &end_date.to_string(),
+                            yahoo::config::Interval::OneDay
+                        ).await;
+                        return yahoo_ohlcv;
+                    }
+                    let mut df = vec[0].clone();
+                    if vec.len() > 1 {
+                        for i in 1..vec.len() {
+                            df = concat([df.lazy(), vec[i].clone().lazy()], UnionArgs::default())?.collect()?
+                        }
+                    }
+                    if df.height() > 0 {
+                        return Ok(df);
                     } else {
                         // no entries in database or symbol not found, search yahoo instead
                         let yahoo_ohlcv = yahoo::api::get_chart(
@@ -65,6 +81,7 @@ impl TickerData for Ticker {
                         ).await;
                         return yahoo_ohlcv;
                     }
+
                 },
                 Err(error) => {
                     log::error!("{}", error);
