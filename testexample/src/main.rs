@@ -1,7 +1,7 @@
 //! stock-livedata
 //! Work with stock data and analyse and predict stuff
 
-use chrono::NaiveDateTime;
+use chrono::{Datelike, NaiveDateTime};
 use log::{LevelFilter};
 //use polars::prelude::*;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
@@ -242,21 +242,29 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 continue;
             },
         }
-        let start_date = chrono::Utc::now()
-        .date_naive()
-        .and_time(
+        // get only the last stock day.
+        // TODO: Replace by live data
+        let day = if chrono::Utc::now().weekday() == chrono::Weekday::Mon {
+            chrono::Utc::now()
+                .date_naive()
+                .checked_sub_days(chrono::Days::new(3)).unwrap()   // Last Friday
+        } else {
+            chrono::Utc::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap()
+        };
+        let start_date = day.clone().and_time(
             chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0)
             .unwrap()
         ).and_utc();
 
-        let end_date = chrono::Utc::now()
-        .date_naive()
-        .and_time(
+        let end_date = day.clone().and_time(
             chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0)
             .unwrap()
         ).and_utc();
         ticker.start_date = start_date.naive_utc().to_string();
         ticker.end_date = end_date.naive_utc().to_string();
+        if end_date.timestamp_millis() <= start_date.timestamp_millis() {
+            log::error!("timestamps are do not span a time span!");
+        }
         match ticker.candlestick_chart_live(None, None).await {
             Ok(pl) => {
                 let mut file_name = stock_symbol.clone();
@@ -397,8 +405,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         std::fs::create_dir(filepath.clone())?;
     }
 
-    let _ret = test_screeners(&filepath).await;
-
     let _ret = test_ticker_data(&filepath).await;
     
 
@@ -421,6 +427,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await
             .map_err(|e| format!("PortfolioBuilder error: {e}"));
     test_portfolio(portfolio, &filepath).await.unwrap();
+
+    let _ret = test_screeners(&filepath).await;
+
     
     Ok(())
 }
