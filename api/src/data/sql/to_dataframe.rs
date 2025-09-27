@@ -45,7 +45,7 @@ pub fn str_to_datetime(datetime_str: &str) -> Result<NaiveDateTime, Box<dyn Erro
 pub fn i64_column_to_datetime_vec(df: DataFrame) -> Result<Vec<NaiveDateTime>, Box<dyn Error>> {
     let df2 = df.column("timestamp")?.i64()?
             .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
-            .naive_local()).collect::<Vec<NaiveDateTime>>();
+            .naive_utc()).collect::<Vec<NaiveDateTime>>();
     Ok(df2)
 }
 
@@ -100,7 +100,7 @@ pub fn ohlcv_to_dataframe(
         let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
 
         let df = df!(
-            "timestamp" => &timestamp,
+            "timestamp" => &timestamp.clone(),
             "open" => &open,
             "high" => &high,
             "low" => &low,
@@ -114,20 +114,15 @@ pub fn ohlcv_to_dataframe(
         let df = df.filter(&mask)?;
 
         // check if any returned dates smaller than start date or greater than end date
-        match i64_column_to_datetime_vec(df.clone()) {
-            Ok(dt) => {
-                let mask = dt.iter()
+        let start = start_date.and_utc().timestamp_millis();
+        let end = end_date.and_utc().timestamp_millis();
+        let mask = timestamp.iter()
                     .map(|x| {
-                        &start_date < x && x < &end_date
+                        start < *x && *x < end
                     })
                     .collect();
-                let df = df.filter(&mask)?;
-                v.push(df);
-            }
-            Err(error) => {
-                log::error!("Unable to turn timestamps into dates to create a date filter mask! {:?}", error);
-            }
-        }
+        let df = df.filter(&mask)?;
+        v.push(df);
     }
     Ok(v)
 }
