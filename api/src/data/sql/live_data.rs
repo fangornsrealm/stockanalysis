@@ -172,7 +172,7 @@ pub fn live_data(
             return v;
         }
     };
-    let num_days = (metadata.end_date - metadata.start_date).num_days();
+    let num_days = (metadata.end_date - metadata.start_date).num_days() + 1;
     for i in 0..num_days {
         let mut t = Vec::new();
         let (start, end) = timestamps_daily(&metadata.start_date, i);
