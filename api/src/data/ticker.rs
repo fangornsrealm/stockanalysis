@@ -49,7 +49,7 @@ impl TickerData for Ticker {
                         chrono::NaiveDate::parse_from_str(&self.end_date, "%Y-%m-%d %H:%M:%S")?
                     }
                 }
-                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
+                    .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23*3600+59*60, 0).unwrap())
                     .and_utc();
             match super::sql::to_dataframe::ohlcv_to_dataframe(sql_connection, &self.ticker, start_date.naive_utc(), end_date.naive_utc()) {
                 Ok(vec) => {

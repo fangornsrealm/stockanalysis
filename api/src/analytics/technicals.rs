@@ -1,7 +1,7 @@
 use ta::{DataItem, Next};
 use ta::indicators::*;
 use std::error::Error;
-use chrono::{DateTime, NaiveDateTime, Utc, Months};
+use chrono::{DateTime, NaiveDateTime};
 use polars::prelude::*;
 use crate::models::ticker::Ticker;
 use crate::data::ticker::TickerData;
@@ -45,21 +45,37 @@ impl Column {
 
 pub trait TechnicalIndicators {
     fn sma(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn sma_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn ema(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn ema_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn rsi(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn rsi_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn macd(&self, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn macd_df(&self, ohlcv: DataFrame, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn ppo(&self, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn ppo_df(&self, ohlcv: DataFrame, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn mfi(&self, period: usize) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn mfi_df(&self, ohlcv: DataFrame, period: usize) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn bb(&self, period: usize, std_dev: f64, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn bb_df(&self, ohlcv: DataFrame, period: usize, std_dev: f64, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn fs(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn fs_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn ss(&self, stochastic_period: usize, ema_period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn ss_df(&self, ohlcv: DataFrame, stochastic_period: usize, ema_period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn sd(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn sd_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn mad(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn mad_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn max(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn max_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn min(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn min_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn atr(&self, period: usize) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn atr_df(&self, ohlcv: DataFrame, period: usize) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn roc(&self, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn roc_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn obv(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn obv_df(&self, ohlcv: DataFrame) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
 }
 
 
@@ -92,6 +108,22 @@ impl TechnicalIndicators for Ticker {
         let df= df.with_column(sma_series)?.clone();
         Ok(df)
     }
+    async fn sma_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let mut sma = SimpleMovingAverage::new(period).unwrap();
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let col = format!("sma-{period}");
+        let sma_series = Series::new(col.as_str().into(), col_val.iter().map(|x| sma.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df= df.with_column(sma_series)?.clone();
+        Ok(df)
+    }
 
     /// Generates a Dataframe of the ticker price data with the Exponential Moving Average Indicator
     ///
@@ -105,6 +137,23 @@ impl TechnicalIndicators for Ticker {
     /// * `DataFrame` of the ticker price data with the Exponential Moving Average Indicator
     async fn ema(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
+        let mut ema = ExponentialMovingAverage::new(period).unwrap();
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let col = format!("ema-{period}");
+        let ema_series = Series::new(col.as_str().into(), col_val.iter().map(|x| ema.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df= df.with_column(ema_series)?.clone();
+        Ok(df)
+    }
+    
+    async fn ema_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let mut ema = ExponentialMovingAverage::new(period).unwrap();
         let col_str = match col {
             Some(col) => col.as_str(),
@@ -149,6 +198,23 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
+    async fn rsi_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let mut rsi = RelativeStrengthIndex::new(period).unwrap();
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let col = format!("rsi-{period}");
+        let rsi_series = Series::new(col.as_str().into(), col_val.iter().map(|x| rsi.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(rsi_series)?.clone();
+        Ok(df)
+    }
+
     /// Generates a Dataframe of the ticker price data with the Moving Average Convergence Divergence Indicators
     ///
     /// # Arguments
@@ -163,6 +229,27 @@ impl TechnicalIndicators for Ticker {
     /// * `DataFrame` of the ticker price data with the Moving Average Convergence Divergence Indicators
     async fn macd(&self, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut macd = MovingAverageConvergenceDivergence::new(fast_period, slow_period, signal_period).unwrap();
+        let macd_str = format!("macd-({fast_period},{slow_period},{signal_period})");
+        let signal_str = format!("macd_signal-({fast_period},{slow_period},{signal_period})");
+        let divergence_str = format!("macd_divergence-({fast_period},{slow_period},{signal_period})");
+        let all_series:Vec<MovingAverageConvergenceDivergenceOutput> = col_val.iter().map(|x| macd.next(*x)).collect();
+        let df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+            macd_str.as_str() => all_series.iter().map(|x| x.macd).collect::<Vec<f64>>(),
+            signal_str.as_str() => all_series.iter().map(|x| x.signal).collect::<Vec<f64>>(),
+            divergence_str.as_str() => all_series.iter().map(|x| x.histogram).collect::<Vec<f64>>()
+        )?;
+        Ok(df)
+    }
+
+    async fn macd_df(&self, ohlcv: DataFrame, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -216,6 +303,27 @@ impl TechnicalIndicators for Ticker {
         )?;
         Ok(df)
     }
+    
+    async fn ppo_df(&self, ohlcv: DataFrame, fast_period: usize, slow_period: usize, signal_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut ppo = PercentagePriceOscillator::new(fast_period, slow_period, signal_period).unwrap();
+        let ppo_str = format!("ppo-({fast_period},{slow_period},{signal_period})");
+        let signal_str = format!("ppo_signal-({fast_period},{slow_period},{signal_period})");
+        let divergence_str = format!("ppo_divergence-({fast_period},{slow_period},{signal_period})");
+        let all_series:Vec<PercentagePriceOscillatorOutput> = col_val.iter().map(|x| ppo.next(*x)).collect();
+        let df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+            ppo_str.as_str() => all_series.iter().map(|x| x.ppo).collect::<Vec<f64>>(),
+            signal_str.as_str() => all_series.iter().map(|x| x.signal).collect::<Vec<f64>>(),
+            divergence_str.as_str() => all_series.iter().map(|x| x.histogram).collect::<Vec<f64>>()
+        )?;
+        Ok(df)
+    }
 
     /// Generates a Dataframe of the OHLCV data with the Money Flow Index Indicator
     ///
@@ -229,8 +337,13 @@ impl TechnicalIndicators for Ticker {
     async fn mfi(&self, period: usize) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
         let mut mfi = MoneyFlowIndex::new(period).unwrap();
-        let mut timestamp = ohlcv.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
-            DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
+        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
         let mut open = ohlcv.column("open")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut high = ohlcv.column("high")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
@@ -275,7 +388,60 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
-    /// Generates a Dataframe of the ticker price data with Bollinger Bands
+    async fn mfi_df(&self, ohlcv: DataFrame, period: usize) -> Result<DataFrame, Box<dyn Error>> {
+        let mut mfi = MoneyFlowIndex::new(period).unwrap();
+        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
+        let mut open = ohlcv.column("open")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut high = ohlcv.column("high")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut close = ohlcv.column("close")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut volume = ohlcv.column("volume")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let items = [high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
+        let mut data_items:Vec<DataItem> = Vec::new();
+        for i in 0..close.len() {
+            let di = match DataItem::builder()
+                .high(items[0][i])
+                .low(items[1][i])
+                .close(items[2][i])
+                .open(items[3][i])
+                .volume(items[4][i])
+                .build() {
+                Ok(di) => {
+                    di
+                },
+                Err(_) => {
+                    timestamp.remove(i);
+                    open.remove(i);
+                    high.remove(i);
+                    low.remove(i);
+                    close.remove(i);
+                    volume.remove(i);
+                    eprintln!("Error creating DataItem");
+                    continue
+                }
+            };
+            data_items.push(di);
+        }
+        let col = format!("mfi-{period}");
+        let df = df!(
+            "timestamp" => timestamp,
+            "open" => open,
+            "high" => high,
+            "low" => low,
+            "close" => close,
+            "volume" => volume,
+            col.as_str() => data_items.iter().map(|x| mfi.next(x)).collect::<Vec<f64>>()
+        )?;
+        Ok(df)
+    }
+
+   /// Generates a Dataframe of the ticker price data with Bollinger Bands
     ///
     /// # Arguments
     ///
@@ -288,6 +454,27 @@ impl TechnicalIndicators for Ticker {
     /// * `DataFrame` of the ticker price data with Bollinger Bands
     async fn bb(&self, period: usize, std_dev: f64, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut bb = BollingerBands::new(period, std_dev).unwrap();
+        let bb_str = format!("bb-({period},{std_dev})");
+        let upper_str = format!("bb_upper-({period},{std_dev})");
+        let lower_str = format!("bb_lower-({period},{std_dev})");
+        let all_series:Vec<BollingerBandsOutput> = col_val.iter().map(|x| bb.next(*x)).collect();
+        let df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+            bb_str.as_str() => all_series.iter().map(|x| x.average).collect::<Vec<f64>>(),
+            upper_str.as_str() => all_series.iter().map(|x| x.upper).collect::<Vec<f64>>(),
+            lower_str.as_str() => all_series.iter().map(|x| x.lower).collect::<Vec<f64>>()
+        )?;
+        Ok(df)
+    }
+
+    async fn bb_df(&self, ohlcv: DataFrame, period: usize, std_dev: f64, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -336,6 +523,23 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
+    async fn fs_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut fs = FastStochastic::new(period).unwrap();
+        let col = format!("fs-{period}");
+        let fs_series = Series::new(col.as_str().into(), col_val.iter().map(|x| fs.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(fs_series)?.clone();
+        Ok(df)
+    }
+
     /// Generates a Dataframe of the ticker price data with the Slow Stochastic Oscillator
     ///
     /// # Arguments
@@ -349,6 +553,23 @@ impl TechnicalIndicators for Ticker {
     /// * `DataFrame` of the ticker price data with the Slow Stochastic Oscillator
     async fn ss(&self, stochastic_period: usize, ema_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut ss = SlowStochastic::new(stochastic_period, ema_period).unwrap();
+        let col = format!("ss-({stochastic_period},{ema_period}`)");
+        let ss_series = Series::new(col.as_str().into(), col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(ss_series)?.clone();
+        Ok(df)
+    }
+
+    async fn ss_df(&self, ohlcv: DataFrame, stochastic_period: usize, ema_period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -393,6 +614,23 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
+    async fn sd_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut sd = StandardDeviation::new(period).unwrap();
+        let col = format!("sd-{period}");
+        let sd_series = Series::new(col.as_str().into(), col_val.iter().map(|x| sd.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(sd_series)?.clone();
+        Ok(df)
+    }
+
     /// Generates a Dataframe of the ticker price data with rolling Mean Absolute Deviation
     ///
     /// # Arguments
@@ -405,6 +643,23 @@ impl TechnicalIndicators for Ticker {
     /// * `DataFrame` of the ticker price data with rolling Mean Absolute Deviation
     async fn mad(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Close.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut mad = MeanAbsoluteDeviation::new(period).unwrap();
+        let col = format!("mad-{period}");
+        let mad_series = Series::new(col.as_str().into(), col_val.iter().map(|x| mad.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(mad_series)?.clone();
+        Ok(df)
+    }
+
+    async fn mad_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Close.as_str()
@@ -449,6 +704,23 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
+    async fn max_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::High.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut max = Maximum::new(period).unwrap();
+        let col = format!("max-{period}");
+        let max_series = Series::new(col.as_str().into(), col_val.iter().map(|x| max.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(max_series)?.clone();
+        Ok(df)
+    }
+
     /// Generates a Dataframe of the ticker price data with rolling Minimum Values
     ///
     /// # Arguments
@@ -461,6 +733,23 @@ impl TechnicalIndicators for Ticker {
     /// * `DataFrame` of the ticker price date data with rolling Minimum Values
     async fn min(&self, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::Low.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut min = Minimum::new(period).unwrap();
+        let col = format!("min-{period}");
+        let min_series = Series::new(col.as_str().into(), col_val.iter().map(|x| min.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(min_series)?.clone();
+        Ok(df)
+    }
+
+    async fn min_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
         let col_str = match col {
             Some(col) => col.as_str(),
             None => Column::Low.as_str()
@@ -490,8 +779,66 @@ impl TechnicalIndicators for Ticker {
         let ohlcv = self.get_chart_daily().await?;
         let mut atr = AverageTrueRange::new(period).unwrap();
         let col = format!("atr-{period}");
-        let mut timestamp = ohlcv.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
-            DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
+        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
+        let mut open = ohlcv.column("open")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut high = ohlcv.column("high")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut close = ohlcv.column("close")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut volume = ohlcv.column("volume")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let items = [high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
+        let mut data_items:Vec<DataItem> = Vec::new();
+        for i in 0..close.len() {
+            let di = match DataItem::builder()
+                .high(items[0][i])
+                .low(items[1][i])
+                .close(items[2][i])
+                .open(items[3][i])
+                .volume(items[4][i])
+                .build() {
+                Ok(di) => {
+                    di
+                },
+                Err(_) => {
+                    timestamp.remove(i);
+                    open.remove(i);
+                    high.remove(i);
+                    low.remove(i);
+                    close.remove(i);
+                    volume.remove(i);
+                    eprintln!("Error creating DataItem");
+                    continue
+                }
+            };
+            data_items.push(di);
+        }
+        let df = df!(
+            "timestamp" => timestamp,
+            "open" => open,
+            "high" => high,
+            "low" => low,
+            "close" => close,
+            "volume" => volume,
+            col.as_str() => data_items.iter().map(|x| atr.next(x)).collect::<Vec<f64>>()
+        )?;
+        Ok(df)
+    }
+
+    async fn atr_df(&self, ohlcv: DataFrame, period: usize) -> Result<DataFrame, Box<dyn Error>> {
+        let mut atr = AverageTrueRange::new(period).unwrap();
+        let col = format!("atr-{period}");
+        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
         let mut open = ohlcv.column("open")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut high = ohlcv.column("high")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
@@ -563,6 +910,23 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
+    async fn roc_df(&self, ohlcv: DataFrame, period: usize, col: Option<Column>) -> Result<DataFrame, Box<dyn Error>> {
+        let col_str = match col {
+            Some(col) => col.as_str(),
+            None => Column::AdjClose.as_str()
+        };
+        let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut roc = RateOfChange::new(period).unwrap();
+        let col = format!("roc-{period}");
+        let roc_series = Series::new(col.as_str().into(), col_val.iter().map(|x| roc.next(*x)).collect::<Vec<f64>>());
+        let mut df = df!(
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
+        )?;
+        let df = df.with_column(roc_series)?.clone();
+        Ok(df)
+    }
+
     /// Generates a Dataframe of the OHLCV data with the On Balance Volume Indicator
     ///
     /// # Returns
@@ -571,8 +935,65 @@ impl TechnicalIndicators for Ticker {
     async fn obv(&self) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
         let mut obv = OnBalanceVolume::new();
-        let mut timestamp = ohlcv.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
-            DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
+        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
+        let mut open = ohlcv.column("open")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut high = ohlcv.column("high")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut close = ohlcv.column("close")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mut volume = ohlcv.column("volume")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let items = [high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
+        let mut data_items:Vec<DataItem> = Vec::new();
+        for i in 0..close.len() {
+            let di = match DataItem::builder()
+                .high(items[0][i])
+                .low(items[1][i])
+                .close(items[2][i])
+                .open(items[3][i])
+                .volume(items[4][i])
+                .build() {
+                Ok(di) => {
+                    di
+                },
+                Err(_) => {
+                    timestamp.remove(i);
+                    open.remove(i);
+                    high.remove(i);
+                    low.remove(i);
+                    close.remove(i);
+                    volume.remove(i);
+                    eprintln!("Error creating DataItem");
+                    continue
+                }
+            };
+            data_items.push(di);
+        }
+        let df = df!(
+            "timestamp" => timestamp,
+            "open" => open,
+            "high" => high,
+            "low" => low,
+            "close" => close,
+            "volume" => volume,
+            "obv" => data_items.iter().map(|x| obv.next(x)).collect::<Vec<f64>>()
+        )?;
+        Ok(df)
+    }
+
+    async fn obv_df(&self, ohlcv: DataFrame) -> Result<DataFrame, Box<dyn Error>> {
+        let mut obv = OnBalanceVolume::new();
+        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
         let mut open = ohlcv.column("open")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut high = ohlcv.column("high")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();

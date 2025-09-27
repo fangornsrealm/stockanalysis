@@ -9,6 +9,7 @@ use crate::reports::table::DataTable;
 
 pub trait TickersCharts {
     fn ohlcv_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn ohlcv_table_daily(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn returns_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
@@ -21,6 +22,12 @@ impl TickersCharts for Tickers {
     /// Displays the OHLCV Table for the tickers
     async fn ohlcv_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let data = self.get_chart().await?;
+        let table = data.to_datatable("ohlcv", true, DataTableFormat::Number);
+        Ok(table)
+    }
+
+    async fn ohlcv_table_daily(&self) -> Result<DataTable, Box<dyn Error>> {
+        let data = self.get_chart_daily().await?;
         let table = data.to_datatable("ohlcv", true, DataTableFormat::Number);
         Ok(table)
     }
@@ -50,11 +57,21 @@ impl TickersCharts for Tickers {
     async fn returns_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let symbols = self.tickers.iter().map(|x| x.ticker.clone()).collect::<Vec<String>>();
         let asset_returns = self.returns().await?;
-        let dates = asset_returns.column("timestamp")?.str()?.into_no_null_iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>();
+        
+        let dates = match crate::data::sql::i64_column_to_datetime_vec(asset_returns.clone()) {
+            Ok(v) => {
+                v.iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>()
+            },
+            Err(_e) => {
+                Vec::new()
+            }
+        };
         let mut plot = Plot::new();
-
+        if dates.len() == 0 {
+            return Ok(plot);
+        }
         for symbol in symbols {
             match asset_returns.column(&symbol) {
                 Ok(returns_series) => {

@@ -67,6 +67,7 @@ macro_rules! fetch_all {
 
 pub trait TickersData {
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
+    fn get_chart_daily(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_news(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_ticker_stats(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
@@ -79,6 +80,31 @@ pub trait TickersData {
 impl TickersData for Tickers {
     /// Fetch the OHLCV Data for all tickers in the Tickers Struct
     async fn get_chart(&self) -> Result<DataFrame, Box<dyn Error>> {
+        let mut results = Vec::new();
+        for ticker in self.tickers.clone().into_iter() {
+            let fut = match ticker.get_chart().await {
+                Ok(chart) => {
+                    Ok(chart)
+                }
+                Err(e) => {
+                    eprintln!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e);
+                    Err(format!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e))
+                }
+            };
+
+            results.push(fut);
+        }
+
+        let mut combined = results[0].clone()?;
+        for i in 1..results.len() {
+            if let Ok(frame) = results[i].clone() {
+                combined = combined.left_join(&frame, ["adjclose"], ["open"])?
+            }
+        }
+        Ok(combined)
+    }
+
+    async fn get_chart_daily(&self) -> Result<DataFrame, Box<dyn Error>> {
         let mut results = Vec::new();
         for ticker in self.tickers.clone().into_iter() {
             let fut = match ticker.get_chart_daily().await {
