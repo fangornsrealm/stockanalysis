@@ -14,33 +14,6 @@ pub struct Options {
     pub help: String,
 }
 
-pub fn get_livedata_active_symbols(
-    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
-    symbols: &Vec<String>
-) {
-    let now = Local::now();
-    
-    for symbol in symbols.iter() {
-        let metadata = api::data::sql::metadata(sql_connection.clone(), "XFRA", symbol);
-        let start_time = NaiveTime::from_num_seconds_from_midnight_opt(7*60, 0).expect("That should never fail!");
-        let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*60, 0).expect("That should never fail!");
-        let start_date = now.clone().date_naive().and_time(start_time);
-        let end_date = now.clone().date_naive().and_time(end_time);
-        match api::data::livedata::live_data(symbol, start_date, end_date) {
-            Ok(enhanced_data) => {
-                // store the data
-                for data in enhanced_data.iter() {
-                    let _ret = api::data::sql::insert_live_data(sql_connection.clone(), &metadata, data);
-                }
-            },
-            Err(e) => {
-                log::error!("Failed to retrieve data for symbol {} from provider! {}", symbol, e);
-                continue;
-            },
-        }
-    }
-}
-
 pub fn run_analysis_on_updated_dataframe(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>
@@ -116,8 +89,8 @@ pub async fn update_database() -> EyreResult<()> {
         // temporarily get the minutely data also once per day until there is a subscription with live-data access
         for symbol in symbols.iter() {
             let mut metadata: api::data::sql::MetaData = api::data::sql::metadata(sql_connection.clone(), "XFRA", symbol);
-            let start_time = NaiveTime::from_num_seconds_from_midnight_opt(7*60, 0).expect("That should never fail!");
-            let end_time = NaiveTime::from_num_seconds_from_midnight_opt(22*60, 0).expect("That should never fail!");
+            let start_time = NaiveTime::from_num_seconds_from_midnight_opt(7*3600, 0).expect("That should never fail!");
+            let end_time = NaiveTime::from_num_seconds_from_midnight_opt(22*3600, 0).expect("That should never fail!");
             let start_date = now.clone().date_naive().and_time(start_time);
             let end_date = now.clone().date_naive().and_time(end_time);
             metadata.start_date = start_date.clone().and_utc();
