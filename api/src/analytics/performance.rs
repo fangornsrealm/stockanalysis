@@ -56,9 +56,14 @@ impl TickerPerformance for Ticker {
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
-        let dates_array = benchmark_returns.column("timestamp")?.i64()?
-            .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
-            .naive_local()).collect::<Vec<NaiveDateTime>>();
+        let dates_array = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(benchmark_returns.clone()) {
+            Ok(v) => v,
+            Err(_error) => {
+                benchmark_returns.column("timestamp")?.i64()?.to_vec().iter().map(|x|
+                    DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>()
+            }
+        };
+
         let interval = interval_days(dates_array.clone());
         let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
         let security_returns = security_returns.column(&self.ticker)?.as_series().unwrap();
