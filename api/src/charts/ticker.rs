@@ -155,13 +155,13 @@ impl TickerCharts for Ticker {
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let volume = ohlcv.column("volume")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let rsi_df = self.rsi(14, None).await?;
+        let rsi_df = self.rsi_df(ohlcv.clone(), 14, None).await?;
         let rsi_values = rsi_df.column("rsi-14")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let ma_50_df = self.sma(50, None).await?;
+        let ma_50_df = self.sma_df(ohlcv.clone(), 50, None).await?;
         let ma_50_values = ma_50_df.column("sma-50")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let ma_200_df = self.sma(200, None).await?;
+        let ma_200_df = self.sma_df(ohlcv.clone(), 200, None).await?;
         let ma_200_values = ma_200_df.column("sma-200")?.f64()?.to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
