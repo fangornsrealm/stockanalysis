@@ -97,6 +97,8 @@ pub mod charts;
 pub mod utils;
 pub mod data;
 pub mod reports;
+#[cfg(test)]
+mod tests;
 
 pub mod prelude {
 
@@ -155,66 +157,3 @@ pub mod prelude {
     #[cfg(feature = "kaleido")]
     pub use crate::utils::chart_utils::PlotImage;
 }
-
-
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
-    use std::error::Error;
-
-    #[ignore]
-    #[tokio::test]
-    async fn finalytics_test() -> Result<(), Box<dyn Error>> {
-        // Screen for Large-Cap NASDAQ Stocks
-        let equity_screener = Screener::builder()
-                 .quote_type(QuoteType::Equity)
-                 .add_filter(ScreenerFilter::EqStr(
-                     ScreenerMetric::Equity(EquityScreener::Exchange),
-                     Exchange::NASDAQ.as_ref()
-                 ))
-                 .sort_by(
-                     ScreenerMetric::Equity(EquityScreener::MarketCapIntraday),
-                     true
-                 )
-                 .size(10)
-                 .build()
-                 .await?;
-
-        equity_screener.overview().show()?;
-        equity_screener.metrics().await?.show()?;
-
-        // Instantiate a Multiple Ticker Object
-        let ticker_symbols = equity_screener.symbols.iter()
-            .map(|x| x.as_str()).collect::<Vec<&str>>();
-
-        let tickers = Tickers::builder()
-            .tickers(ticker_symbols.clone())
-            .start_date("2023-01-01")
-            .end_date("2024-12-31")
-            .interval(Interval::OneDay)
-            .benchmark_symbol("MSFT")
-            .confidence_level(0.95)
-            .risk_free_rate(0.02)
-            .build();
-
-       // Generate a Single Ticker Report
-        let symbol = ticker_symbols.first().unwrap();
-        let ticker = tickers.clone().get_ticker(symbol).await?;
-        ticker.report(Some(ReportType::Performance)).await?.show()?;
-        ticker.report(Some(ReportType::Financials)).await?.show()?;
-        ticker.report(Some(ReportType::Options)).await?.show()?;
-        ticker.report(Some(ReportType::News)).await?.show()?;
-
-        // Generate a Multiple Ticker Report
-        tickers.report(Some(ReportType::Performance)).await?.show()?;
-
-        // Perform a Portfolio Optimization
-        let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
-
-        // Generate a Portfolio Report
-        portfolio.report(Some(ReportType::Performance)).await?.show()?;
-
-        Ok(())
-    }
-}
-

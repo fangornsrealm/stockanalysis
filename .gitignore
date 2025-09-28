@@ -1,5 +1,6 @@
 /target
 /api/target
+/api/testfiles
 /testexample/target
 /daemon/target
 /testexample/testfiles
