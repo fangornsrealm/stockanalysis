@@ -7,6 +7,11 @@ use tokio::{
     time::{self, Duration}
 };
 
+/// convert a Vec<Vec<>> to Vec<&[]>
+pub fn vecs_to_slices<T>(vecs: &[Vec<T>]) -> Vec<&[T]> {
+    vecs.iter().map(Vec::as_slice).collect()
+}
+
 #[derive(Debug, PartialEq, StructOpt)]
 pub struct Options {
     /// API Server url
@@ -21,9 +26,10 @@ pub fn run_analysis_on_updated_dataframe(
     let now = Local::now();
     
     for symbol in symbols.iter() {
-        let start_time = NaiveTime::from_num_seconds_from_midnight_opt(7*60, 0).expect("That should never fail!");
-        let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*60, 0).expect("That should never fail!");
-        let start_date = now.clone().date_naive().and_time(start_time);
+        let mut vv = Vec::new();
+        let start_time = NaiveTime::from_num_seconds_from_midnight_opt(1*3600, 0).expect("That should never fail!");
+        let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600, 0).expect("That should never fail!");
+        let start_date = now.clone().date_naive().checked_sub_days(chrono::Days::new(14)).unwrap().and_time(start_time);
         let end_date = now.clone().date_naive().and_time(end_time);
         let ohlcv: polars::prelude::DataFrame = match api::data::sql::to_dataframe::ohlcv_to_dataframe(
             sql_connection.clone(),
@@ -36,8 +42,22 @@ pub fn run_analysis_on_updated_dataframe(
                     continue;
                 }
                 let mut df = vec[0].clone();
+                match api::data::sql::to_dataframe::f64_column_to_vec(&df, "adjclose") {
+                    Ok(av) => vv.push(av),
+                    Err(error) => {
+                        log::error!("Unable to turn get column adjclose! {:?}", error);
+                        continue;
+                    }
+                };
                 if vec.len() > 1 {
                     for i in 1..vec.len() {
+                        match api::data::sql::to_dataframe::f64_column_to_vec(&vec[i].clone(), "adjclose") {
+                            Ok(av) => vv.push(av),
+                            Err(error) => {
+                                log::error!("Unable to turn get column adjclose! {:?}", error);
+                                continue;
+                            }
+                        };
                         df = concat([df.lazy(), vec[i].clone().lazy()], UnionArgs::default()).unwrap().collect().unwrap();
                     }
                 }
@@ -75,11 +95,22 @@ pub fn run_analysis_on_updated_dataframe(
                 continue;
             }
         };
-
+        let seasonality = api::analytics::detectors::seasonality(&adjclose, 10, 9600, 0.2, false);
+        let changepoints = api::analytics::detectors::changepoints(&adjclose, true);
+        
+        
+        let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 0.5, 0.3);
+        api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
+        
+        let slope = api::analytics::detectors::increasing_slope(&vv[vv.len()-1], 0.5, 0.3);
+        if slope != 0.0 {
+            // send alarm
+            log::warn!("Symbol {} jumped by {} at {}!", symbol, slope, datetimes[datetimes.len()-1].to_string());
+        }
     }
 }
 
-pub async fn update_database() -> EyreResult<()> {
+pub async fn run_jobs() -> EyreResult<()> {
     let now = Local::now();
     let sql_connection = api::data::sql::connect();
     let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
@@ -116,7 +147,7 @@ pub async fn update_database() -> EyreResult<()> {
                 //get_livedata_active_symbols(sql_connection.clone(), &symbols);
 
                 // triger the live analysis and event detection
-
+                run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols);
             }
         }
     }
@@ -131,7 +162,7 @@ pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreRes
         let mut interval = time::interval(Duration::from_secs(60));
         loop {
             interval.tick().await; // This should go first.
-            tokio::spawn(update_database());
+            tokio::spawn(run_jobs());
         }
     });
     // Wait for shutdown
