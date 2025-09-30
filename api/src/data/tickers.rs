@@ -98,7 +98,13 @@ impl TickersData for Tickers {
         let mut combined = results[0].clone()?;
         for i in 1..results.len() {
             if let Ok(frame) = results[i].clone() {
-                combined = combined.left_join(&frame, ["adjclose"], ["open"])?
+                combined = match combined.vstack(&frame) {
+                    Ok(jdf) => jdf,
+                    Err(e) => {
+                        eprintln!("Unable to stack {:?}: {}", &frame, e);
+                        continue
+                    },
+                }
             }
         }
         Ok(combined)
@@ -123,7 +129,13 @@ impl TickersData for Tickers {
         let mut combined = results[0].clone()?;
         for i in 1..results.len() {
             if let Ok(frame) = results[i].clone() {
-                combined = combined.left_join(&frame, ["adjclose"], ["open"])?
+                combined = match combined.vstack(&frame) {
+                    Ok(jdf) => jdf,
+                    Err(e) => {
+                        eprintln!("Unable to stack {:?}: {}", &frame, e);
+                        continue
+                    },
+                }
             }
         }
         Ok(combined)
