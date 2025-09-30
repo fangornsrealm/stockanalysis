@@ -181,6 +181,7 @@ dependencies = [
  "select",
  "serde",
  "serde_json",
+ "simplelog",
  "smartcore",
  "statrs",
  "strum",
