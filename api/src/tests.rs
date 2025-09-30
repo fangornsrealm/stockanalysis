@@ -292,7 +292,7 @@ async fn test_portfolio() -> Result<(), Box<dyn Error>> {
     // get a list of symbols from the database
     let sql_connection = super::data::sql::connect();
     let symbolsstrings = super::data::sql::active_symbols(sql_connection.clone());
-    let symbolsstrings = vec!("ADS".to_string(), "BAS".to_string(), "MSFT".to_string());
+    //let symbolsstrings = vec!("ADS".to_string(), "BAS".to_string(), "MSFT".to_string());
 
     // 
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
