@@ -243,7 +243,7 @@ impl PortfolioCharts for Portfolio {
         let symbols = self.optimal_symbols()?;
         let symbols_stats = self.tickers.performance_stats().await?;
         let symbols_series = Series::new("".into(), symbols);
-        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series), false)).collect()?;
+        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series).implode(), false)).collect()?;
 
         let stats = &self.performance_stats.performance_stats;
 

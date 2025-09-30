@@ -138,7 +138,7 @@ impl Report for Tickers {
         let report = match report_type {
             ReportType::Performance => {
                 let mut tabs: Vec<(String, String)> = Vec::new();
-                let price_table = self.ohlcv_table().await?.to_html()?;
+                let price_table = self.ohlcv_table_daily().await?.to_html()?;
                 tabs.push(("Price Data".to_string(), price_table));
                 let returns_table = self.returns_table().await?.to_html()?;
                 tabs.push(("Returns Data".to_string(), returns_table));

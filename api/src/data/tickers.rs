@@ -87,8 +87,8 @@ impl TickersData for Tickers {
                     Ok(chart)
                 }
                 Err(e) => {
-                    eprintln!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e);
-                    Err(format!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e))
+                    eprintln!("Error Fetching Ticker live-data for {}: {}", &ticker.ticker, e);
+                    Err(format!("Error Fetching Ticker live-data for {}: {}", &ticker.ticker, e))
                 }
             };
 
@@ -112,8 +112,8 @@ impl TickersData for Tickers {
                     Ok(chart)
                 }
                 Err(e) => {
-                    eprintln!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e);
-                    Err(format!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e))
+                    eprintln!("Error Fetching Ticker daily data for {}: {}", &ticker.ticker, e);
+                    Err(format!("Error Fetching Ticker daily data for {}: {}", &ticker.ticker, e))
                 }
             };
 
@@ -318,21 +318,61 @@ impl TickersData for Tickers {
         }
 
         let mut joint_df = DataFrame::default();
-
+        // limit the height to the minimum size
+        let mut min_height = 10000;
+        let mut max_height = 0;
+        for r in results.iter() {
+            if  let Ok(df) = r {
+                if df.height() < min_height {
+                    min_height = df.height();
+                }
+                if df.height() > max_height {
+                    max_height = df.height();
+                }
+            }
+        }
+        if min_height < max_height {
+            let mut v = Vec::new();
+            for result in results.clone() {
+                match result {
+                    Ok(df) => {
+                        if df.height() > min_height {
+                            let mask = (0..df.height())
+                                .map(|x| {x < min_height})
+                                .collect();
+                            let df2 = df.filter(&mask)?;
+                            v.push(Ok(df2));
+                        } else {
+                            v.push(Ok(df));
+                        }
+                    },
+                    Err(e) => v.push(Err(e)),
+                }
+            }
+            results.clear();
+            results.extend(v);
+        }
+        // add the last last column of each dataframe to the full first dataframe. 
+        // uses the timestamps of the first dataframe
         for result in results {
             match result {
                 Ok(df) => {
                     if joint_df.width() == 0 {
                         joint_df = df;
                     } else {
-                        joint_df = joint_df
-                            .join(
-                                &df,
-                                ["timestamp"],
-                                ["timestamp"],
-                                JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
-                                None
-                            )?;
+                        let column = if df.get_columns().len() > 1 {
+                            df.get_columns()[1].clone()
+                        } else {
+                            continue
+                        };
+                        joint_df = match joint_df.with_column(column) {
+                            Ok(df) => df.to_owned(),
+                            Err(e) => {
+                                eprintln!("Failed to join column to dataframe: {}", e);
+                                continue
+                            }
+                        };
+
                     }
                 }
                 Err(e) => eprintln!("Error in task: {e}"),

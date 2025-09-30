@@ -34,12 +34,25 @@ impl TickerPerformance for Ticker {
     ///
     /// * `TickerPerformanceStats` struct
     async fn performance_stats(&self) -> Result<TickerPerformanceStats, Box<dyn Error>> {
-        let security_df = match self.roc(1, Some(Column::AdjClose)).await {
+        let mut security_df = match self.roc(1, Some(Column::AdjClose)).await {
             Ok(df) => df,
             Err(error) => return Err(error),
         };
+        let mut benchmark_returns = self.benchmark_ticker.clone().unwrap().roc(1, Some(Column::AdjClose)).await?;
+        if security_df.height() > benchmark_returns.height() {
+            let end = benchmark_returns.height();
+            let mask = (0..security_df.height())
+                    .map(|x| {x < end})
+                    .collect();
+            security_df = security_df.filter(&mask)?;
+        } else if security_df.height() < benchmark_returns.height() {
+            let end = security_df.height();
+            let mask = (0..benchmark_returns.height())
+                    .map(|x| {x < end})
+                    .collect();
+            benchmark_returns = benchmark_returns.filter(&mask)?;
+        }
         let security_prices = security_df.column(Column::AdjClose.as_str())?.as_series().unwrap();
-        let benchmark_returns = self.benchmark_ticker.clone().unwrap().roc(1, Some(Column::AdjClose)).await?;
         // database timestamps are seconds apart. Comparison does not make sense for daily analysis.
         let security_returns = DataFrame::new(vec![
             security_df.column("timestamp")?.clone(),
@@ -141,31 +154,35 @@ impl PortfolioPerformanceStats {
             .map(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%d %H:%M:%S").unwrap())
             .collect::<Vec<NaiveDateTime>>();
         let _ = portfolio_returns.drop_in_place("timestamp")?;
-        let _=  portfolio_returns.insert_column(0, Series::new("timestamp".into(), portfolio_dates))?;
+        let _=  portfolio_returns.insert_column(0, Series::new("timestamp".into(), portfolio_dates.clone()))?;
 
-        let benchmark_returns_timestamp = benchmark_ticker.roc(1, Some(Column::AdjClose)).await?;
+        let mut benchmark_returns_timestamp = benchmark_ticker.roc(1, Some(Column::AdjClose)).await?;
+        let portfolio_height = portfolio_returns.height();
+        if benchmark_returns_timestamp.height() > portfolio_height {
+            let mask = (0..benchmark_returns_timestamp.height())
+                .map(|x| {x < portfolio_height})
+                .collect();
+            benchmark_returns_timestamp = benchmark_returns_timestamp.filter(&mask)?;
+        } else if benchmark_returns_timestamp.height() < portfolio_height {
+            let mask = (0..portfolio_height)
+                .map(|x| {x < benchmark_returns_timestamp.height()})
+                .collect();
+            portfolio_returns = portfolio_returns.filter(&mask)?;
+        }
+        /*
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(benchmark_returns_timestamp.clone()) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
                 return Err(error);
             }
-        };
+        };*/
         let roc = benchmark_returns_timestamp.column("roc-1")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let dates_array = datetimes.clone();
+        let dates_array = portfolio_dates.clone();
         let benchmark_returns = df!(
-            "timestamp" => datetimes,
+            "timestamp" => portfolio_dates,
             "roc-1" => roc,
         )?;
-        /*
-        let benchmark_returns_joined =  portfolio_returns.join(
-            &benchmark_returns,
-            ["timestamp"],
-            ["timestamp"],
-            JoinArgs::new(JoinType::Left),
-            None
-        )?; */
-
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns_zeroed = benchmark_returns.fill_null(FillNullStrategy::Zero)?;
         let interval = interval_days(dates_array.clone());

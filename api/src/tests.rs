@@ -292,14 +292,15 @@ async fn test_portfolio() -> Result<(), Box<dyn Error>> {
     // get a list of symbols from the database
     let sql_connection = super::data::sql::connect();
     let symbolsstrings = super::data::sql::active_symbols(sql_connection.clone());
+    let symbolsstrings = vec!("ADS".to_string(), "BAS".to_string(), "MSFT".to_string());
 
     // 
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
     let portfolio: Result<Portfolio, String> = Portfolio::builder()
             .ticker_symbols(symbols.clone())
             .benchmark_symbol("0H1C")
-            .start_date("2025-03-01")
-            .end_date("2025-08-31")
+            .start_date("2025-09-01")
+            .end_date("2025-09-30")
             .interval(Interval::OneDay)
             .confidence_level(0.95)
             .risk_free_rate(0.02)
