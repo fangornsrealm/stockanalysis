@@ -3,9 +3,16 @@
 
 use augurs::{
     changepoint::{Detector as ChangepointDetector, DefaultArgpcpDetector},
-    clustering::{DbscanCluster, DbscanClusterer},
+    clustering::DbscanClusterer,
     dtw::Dtw,
-    ets::FittedAutoETS,
+    ets::{AutoETS, FittedAutoETS},
+    forecaster::{
+        transforms::{LinearInterpolator, Log, MinMaxScaler},
+        Forecaster, Transformer,
+    },
+    mstl::MSTLModel,
+    outlier::{DbscanDetector, MADDetector, OutlierDetector},
+    prophet::{PredictionData, Prophet, TrainingData, wasmstan::WasmstanOptimizer},
     seasons::{Detector, PeriodogramDetector},
 };
 
@@ -204,10 +211,180 @@ pub fn changepoints(series: &Vec<f64>, smooth: bool) -> Vec<usize> {
     DefaultArgpcpDetector::default().detect_changepoints(&data)
 }
 
-/// split series into chunks
-pub fn split_series_into_seasons(series: &Vec<f64>, event: crate::data::sql::RecurringEventData) -> Vec<Vec<f64>> {
+/// Detect outliers
+/// Outliers could be special events
+pub fn outliers(series: Vec<&[f64]>) -> Vec<usize> {
+    let mut debug = Vec::new();
+    // Create and configure detector
+    let mut detector = DbscanDetector::with_sensitivity(0.5)
+        .expect("sensitivity is between 0.0 and 1.0");
+
+    // Enable parallel processing (requires 'parallel' feature)
+    detector = detector.parallelize(true);
+
+    // Detect outliers
+    let processed = detector.preprocess(&series).expect("input data is valid");
+    let outliers = detector.detect(&processed).expect("detection succeeds");
+
+    debug.push(format!("Outlying series indices: {:?}", outliers.outlying_series));
+    debug.push(format!("Series scores: {:?}", outliers.series_results));
+    // Get indices of outlying series
+    for &idx in &outliers.outlying_series {
+        debug.push(format!("Series {} is an outlier", idx));
+    }
+
+    // Examine detailed results for each series
+    for (idx, result) in outliers.series_results.iter().enumerate() {
+        debug.push(format!("Series {}: outlier = {}", idx, result.is_outlier));
+        debug.push(format!("Scores: {:?}", result.scores));
+    }
+
+    std::fs::write("outliers_debugging.log", &debug.join("\n")).expect("Should be able to write to file");
+    outliers.outlying_series.iter().map(|x| x.to_owned()).collect()
+}
+
+/// Detect if a new data series is an outlier 
+/// needs a series of historical data and a series to compare to it
+pub fn is_outlier(historical_data: Vec<&[f64]>, new_data: &[f64]) -> bool {
+    // Create detector from historical data
+    let detector = MADDetector::with_sensitivity(0.5)
+        .expect("sensitivity is between 0.0 and 1.0");
+
+    // Combine historical and new data
+    let mut all_series: Vec<&[f64]> = historical_data;
+    all_series.push(new_data);
+
+    // Check for outliers
+    let processed = detector.preprocess(&all_series)
+        .expect("input data is valid");
+    let outliers = detector.detect(&processed)
+        .expect("detection succeeds");
+
+    // Check if new series (last index) is an outlier
+    outliers.outlying_series.contains(&(all_series.len() - 1))
+}
+
+/// Sort seasonally organized data series into clusters by similarity\
+pub fn cluster_seasonal_data(series: Vec<&[f64]>) -> Vec<i32> {
     let mut v = Vec::new();
-    let pivot = event.minutes_period / event.time_scale as i64;
+    let mut debug = Vec::new();
+    // Euclidean DTW
+    let euclidean_matrix = Dtw::euclidean()
+        .distance_matrix(&series);
+    let euclidean_clusters = DbscanClusterer::new(0.5, 2)
+        .fit(&euclidean_matrix);
+
+    // Manhattan DTW
+    let manhattan_matrix = Dtw::manhattan()
+        .distance_matrix(&series);
+    let manhattan_clusters = DbscanClusterer::new(0.5, 2)
+        .fit(&manhattan_matrix);
+
+    // Compare results
+    debug.push(format!("Euclidean clusters: {:?}", euclidean_clusters));
+    debug.push(format!("Manhattan clusters: {:?}", manhattan_clusters));
+    
+    // Compute distance matrix using DTW
+    let distance_matrix = Dtw::euclidean()
+        .with_window(2)
+        .with_lower_bound(4.0)
+        .with_upper_bound(10.0)
+        .with_max_distance(10.0)
+        .distance_matrix(&series);
+
+    // Set DBSCAN parameters
+    let epsilon = 0.5;
+    let min_cluster_size = 2;
+
+    // Perform clustering
+    let clusters = DbscanClusterer::new(epsilon, min_cluster_size)
+        .fit(&distance_matrix);
+
+    debug.push(format!("Cluster assignments: {:?}", clusters));
+    std::fs::write("cluster_debugging.log", &debug.join("\n")).expect("Should be able to write to file");
+    // Clusters are labeled: -1 for noise, 0+ for cluster membership
+    for c in clusters {
+        v.push(c.as_i32());
+    }
+    v
+}
+
+pub fn forecast(series: &Vec<f64>) {
+    let mut debug = Vec::new();
+    // Set up model and transformers
+    let ets = AutoETS::non_seasonal().into_trend_model();
+    let mstl = MSTLModel::new(vec![2], ets);
+
+    let transformers = vec![
+        LinearInterpolator::new().boxed(),
+        MinMaxScaler::new().boxed(),
+        Log::new().boxed(),
+    ];
+
+    // Create and fit forecaster
+    let mut forecaster = Forecaster::new(mstl).with_transformers(transformers);
+    forecaster.fit(series).expect("model should fit");
+
+    // Generate forecasts
+    let forecast = forecaster
+        .predict(5, 0.95)
+        .expect("forecasting should work");
+
+    debug.push(format!("Forecast values: {:?}", forecast.point));
+    debug.push(format!("Lower bounds: {:?}", forecast.intervals.as_ref().unwrap().lower));
+    debug.push(format!("Upper bounds: {:?}", forecast.intervals.as_ref().unwrap().upper));
+    std::fs::write("forecast_debugging.log", &debug.join("\n")).expect("Should be able to write to file");
+}
+
+/// Use Metas Prophet forecast routine to fit a model and make a forecast
+pub fn forecast_prophet(series: Vec<f64>, timestamps_millis: &Vec<i64>) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>), Box<dyn std::error::Error>> {
+    let mut debug = Vec::new();
+    let timestamps: Vec<i64> = timestamps_millis.iter().map(|x| *x / 1000).collect();
+    // Create training data
+    let data = TrainingData::new(timestamps.clone(), series.clone())?;
+
+    // Initialize Prophet with WASMSTAN optimizer
+    let optimizer = WasmstanOptimizer::new();
+    let mut prophet = Prophet::new(Default::default(), optimizer);
+
+    // Fit the model
+    prophet.fit(data, Default::default())?;
+
+    // Make in-sample predictions
+    let predictions = prophet.predict(None)?;
+
+    let point = predictions.yhat.point;
+    let lower = predictions.yhat.lower.unwrap();
+    let upper = predictions.yhat.upper.unwrap();
+    debug.push(format!("Predictions inner: {:?}", point));
+    debug.push(format!("Lower bounds inner: {:?}", lower));
+    debug.push(format!("Upper bounds inner: {:?}", upper));
+
+    // forecast for the next ten minutes
+    let mut future_timestamps = Vec::new();
+    let starttime = timestamps[timestamps.len() - 1] + 60;
+    for i in 0..10 {
+        future_timestamps.push(starttime + 60 * i);
+    }
+    let prediction_data = PredictionData::new(future_timestamps);
+    let predictions = prophet.predict(Some(prediction_data))?;
+
+    // Access the forecasted values, and their bounds.
+    let point = predictions.yhat.point;
+    let lower = predictions.yhat.lower.unwrap();
+    let upper = predictions.yhat.upper.unwrap();
+    debug.push(format!("Predictions: {:?}", point));
+    debug.push(format!("Lower bounds: {:?}", lower));
+    debug.push(format!("Upper bounds: {:?}", upper));
+    std::fs::write("forecast_prophet_debugging.log", &debug.join("\n")).expect("Should be able to write to file");
+
+    Ok((point, lower, upper))
+}
+
+/// split series into chunks
+pub fn split_series_into_seasons(series: &Vec<f64>, minutes_per_period: i64, minutes_per_step: i64) -> Vec<Vec<f64>> {
+    let mut v = Vec::new();
+    let pivot = minutes_per_period / minutes_per_step as i64;
     let mut count = 0;
     let mut w = Vec::new();
     for f in series {
@@ -220,5 +397,12 @@ pub fn split_series_into_seasons(series: &Vec<f64>, event: crate::data::sql::Rec
         }
     }
     v
+}
+
+// Utilities
+
+/// convert a Vec<Vec<>> to Vec<&[]>
+pub fn vecs_to_slices<T>(vecs: &[Vec<T>]) -> Vec<&[T]> {
+    vecs.iter().map(Vec::as_slice).collect()
 }
 

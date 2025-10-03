@@ -17,7 +17,7 @@ api = { path = "../api" }
 axum = { version = "0.7.9", optional = true }
 chrono = { version = "0.4", features = ["unstable-locales", "clock"] }
 color-eyre = "0.6"
-console-subscriber = { version = "0.1", optional = true }
+console-subscriber = { version = "0.1" }
 criterion = { version = "0.3", optional = true, features = [ "async_tokio" ] }
 dirs = "6.0.0"
 eyre = "0.6"
@@ -26,6 +26,7 @@ hyper = { version = "^0.14.17", features = [ "server", "tcp", "http1", "http2" ]
 itertools = "0.10"
 log = "0.4"
 mimalloc = { version = "0.1", default-features = false, optional = true }
+notify-rust = "4"
 once_cell = "1.8"
 polars = { version = "0.49.1", default-features = false, features = ["lazy", "dtype-datetime", "rows", "fmt_no_tty", "json", "is_in"] }
 prometheus = { version = "0.13", features = [ "process" ] }

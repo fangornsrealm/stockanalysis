@@ -18,6 +18,7 @@ augurs = { path = "../../augurs/crates/augurs" , features = [
     "ets",
     "forecaster",
     "mstl",
+    "outlier",
     "prophet",
     "prophet-cmdstan",
     "prophet-wasmstan",
@@ -29,6 +30,7 @@ augurs-core        = { path = "../../augurs/crates/augurs-core" }
 augurs-dtw         = { path = "../../augurs/crates/augurs-dtw" }
 augurs-ets         = { path = "../../augurs/crates/augurs-ets" }
 augurs-forecaster  = { path = "../../augurs/crates/augurs-forecaster" }
+augurs-outlier     = { path = "../../augurs/crates/augurs-outlier" }
 augurs-mstl        = { path = "../../augurs/crates/augurs-mstl" }
 augurs-prophet     = { path = "../../augurs/crates/augurs-prophet" }
 augurs-seasons     = { path = "../../augurs/crates/augurs-seasons" }
