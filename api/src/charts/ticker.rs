@@ -55,7 +55,7 @@ impl TickerCharts for Ticker {
     /// * `DataTable` - Interactive Table Chart struct
     async fn ohlcv_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -91,7 +91,7 @@ impl TickerCharts for Ticker {
 
     async fn ohlcv_table_live(&self) -> Result<DataTable, Box<dyn Error>> {
         let ohlcv = self.get_chart().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -137,7 +137,7 @@ impl TickerCharts for Ticker {
     /// * `Plot` Plotly Chart struct
     async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -262,7 +262,7 @@ impl TickerCharts for Ticker {
 
     async fn candlestick_chart_live(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let ohlcv = self.get_chart().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(ohlcv.clone()) {
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);

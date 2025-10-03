@@ -42,7 +42,7 @@ pub fn str_to_datetime(datetime_str: &str) -> Result<NaiveDateTime, Box<dyn Erro
 }
 
 /// converts a vector of UNIX Timestamps to a vector of NaiveDateTime
-pub fn i64_column_to_datetime_vec(df: DataFrame) -> Result<Vec<NaiveDateTime>, Box<dyn Error>> {
+pub fn i64_column_to_datetime_vec(df: &DataFrame) -> Result<Vec<NaiveDateTime>, Box<dyn Error>> {
     let df2 = df.column("timestamp")?.i64()?
             .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
             .naive_utc()).collect::<Vec<NaiveDateTime>>();
@@ -50,7 +50,7 @@ pub fn i64_column_to_datetime_vec(df: DataFrame) -> Result<Vec<NaiveDateTime>, B
 }
 
 pub fn f64_column_to_vec(
-    df: &polars::prelude::DataFrame, 
+    df: &DataFrame, 
     columnname: &str
 ) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
     let v = df.column(columnname)?.f64()?.to_vec()
@@ -59,7 +59,7 @@ pub fn f64_column_to_vec(
 }
 
 pub fn i64_column_to_vec(
-    df: &polars::prelude::DataFrame, 
+    df: &DataFrame, 
     columnname: &str
 ) -> Result<Vec<i64>, Box<dyn std::error::Error>> {
     let v = df.column(columnname)?.i64()?.to_vec()
@@ -122,6 +122,9 @@ pub fn ohlcv_to_dataframe(
                     })
                     .collect();
         let df = df.filter(&mask)?;
+        if df.height() == 0 {
+            continue;
+        }
         v.push(df);
     }
     Ok(v)

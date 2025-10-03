@@ -58,7 +58,7 @@ impl TickersCharts for Tickers {
         let symbols = self.tickers.iter().map(|x| x.ticker.clone()).collect::<Vec<String>>();
         let asset_returns = self.returns().await?;
         
-        let dates = match crate::data::sql::i64_column_to_datetime_vec(asset_returns.clone()) {
+        let dates = match crate::data::sql::i64_column_to_datetime_vec(&asset_returns) {
             Ok(v) => {
                 v.iter()
                     .map(|x| x.to_string())
