@@ -40,8 +40,6 @@ pub async fn main(options: Options, shutdown: broadcast::Sender<()>) -> EyreResu
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use pretty_assertions::assert_eq;
-    use proptest::proptest;
     use tracing::{error, warn};
     use tracing_test::traced_test;
 
@@ -70,60 +68,5 @@ pub mod test {
         assert!(logs_contain("logged on the info level"));
         assert!(logs_contain("logged on the warn level"));
         assert!(!logs_contain("logged on the error level"));
-    }
-}
-
-#[cfg(feature = "bench")]
-pub mod bench {
-    use criterion::{black_box, BatchSize, Criterion};
-    use proptest::{
-        strategy::{Strategy, ValueTree},
-        test_runner::TestRunner,
-    };
-    use std::time::Duration;
-    use tokio::runtime;
-
-    pub fn group(criterion: &mut Criterion) {
-        crate::server::bench::group(criterion);
-        bench_example_proptest(criterion);
-        bench_example_async(criterion);
-    }
-
-    /// Constructs an executor for async tests
-    pub(crate) fn runtime() -> runtime::Runtime {
-        runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-    }
-
-    /// Example proptest benchmark
-    /// Uses proptest to randomize the benchmark input
-    fn bench_example_proptest(criterion: &mut Criterion) {
-        let input = (0..5, 0..5);
-        let mut runner = TestRunner::deterministic();
-        // Note: benchmarks need to have proper identifiers as names for
-        // the CI to pick them up correctly.
-        criterion.bench_function("example_proptest", move |bencher| {
-            bencher.iter_batched(
-                || input.new_tree(&mut runner).unwrap().current(),
-                |(a, b)| {
-                    // Benchmark number addition
-                    black_box(a + b)
-                },
-                BatchSize::LargeInput,
-            );
-        });
-    }
-
-    /// Example async benchmark
-    /// See <https://bheisler.github.io/criterion.rs/book/user_guide/benchmarking_async.html>
-    fn bench_example_async(criterion: &mut Criterion) {
-        let duration = Duration::from_micros(1);
-        criterion.bench_function("example_async", move |bencher| {
-            bencher.to_async(runtime()).iter(|| async {
-                tokio::time::sleep(duration).await;
-            });
-        });
     }
 }

@@ -23,7 +23,6 @@ static SIZE: Lazy<Histogram> = Lazy::new(|| {
     .unwrap()
 });
 
-#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Allocator<T: GlobalAlloc> {
     inner: T,
     metering: AtomicBool,
