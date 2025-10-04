@@ -58,6 +58,154 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
 
 }
 
+fn build_portfolio(portfolio: api::models::portfolio::PortfolioBuilder) -> Result<Portfolio, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        portfolio.build()
+    )
+}
+
+pub fn run_portfolio_analysis(
+    symbolsstrings: &Vec<String>,
+    filepath: &std::path::PathBuf
+) -> Result<(), Box<dyn Error>> {
+    // 
+    let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
+    let days = chrono::Local::now().weekday().num_days_from_monday();
+    let three_months_ago = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap();
+    let yesterday = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap();
+    let date_based_name = if days < 5 {
+        format!("archive_{}", yesterday.to_string())
+    } else {
+        return Ok(());
+    };
+    let archivepath = filepath.clone().join(date_based_name);
+
+    let portfolio = Portfolio::builder()
+            .ticker_symbols(symbols.clone())
+            .benchmark_symbol("0H1C")
+            .start_date("2025-03-01")
+            .end_date("2025-08-31")
+            .interval(Interval::OneDay)
+            .confidence_level(0.95)
+            .risk_free_rate(0.02)
+            .objective_function(ObjectiveFunction::MaxSharpe);
+    let portfolio = build_portfolio(portfolio)?;
+    let testportfolio = portfolio.clone();
+    let portfolio_clone;
+    let opt_chart = portfolio.optimization_chart(None, None)
+            .map_err(|e| format!("Optimization Chart error: {e}"));
+    match opt_chart {
+        Ok(chart) => {
+            let file_name = "opt_chart.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+
+            let file_name = "opt_chart.html";
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let perf_chart = portfolio.performance_chart(None, None)
+            .map_err(|e| format!("Performance Chart error: {e}"));
+    match perf_chart {
+        Ok(chart) => {
+            let file_name = "perf_chart.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+
+            let file_name = "perf_chart.html";
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let perf_stats_chart = portfolio.performance_stats_table()
+            .map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html();
+    match perf_stats_chart {
+        Ok(chart) => {
+            let file_name = "performance_stats_table.html";
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
+        },
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let returns_table = portfolio.returns_table().
+            map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html();
+    let file_name = "returns_table.html";
+    let path = filepath.clone().join(file_name);
+    match returns_table {
+        Ok(chart) => {
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file");
+        },
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let returns_chart = portfolio.returns_chart(None, None)
+            .map_err(|e| format!("Returns Chart error: {e}"));
+    match returns_chart {
+        Ok(chart) => {
+            let file_name = "returns_chart.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+
+            let file_name = "returns_chart.html";
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    let testportfolio = portfolio.clone();
+    let returns_matrix = portfolio.returns_matrix(None, None)
+            .map_err(|e| format!("Returns Matrix error: {e}"));
+    match returns_matrix {
+        Ok(chart) => {
+            let file_name = "returns_matrix.jpg".to_string();
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            chart.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+
+            let file_name = "returns_matrix.html";
+            let path = filepath.clone().join(file_name);
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
+        },
+        Err(e) => {
+            log::error!("Failed to get chart for portfolio: {e}");
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
 fn get_chart_daily(ticker: &Ticker) -> Result<DataFrame, Box<dyn Error>> {
     let handle = tokio::runtime::Handle::current();
     let _ = handle.enter();
@@ -616,6 +764,8 @@ pub async fn run_jobs() -> EyreResult<()> {
 
         let _ret = run_ticker_charts(&symbols, &filepath);
 
+        let _ret = run_portfolio_analysis(&symbols, &filepath);
+
     } else {
         // run live updates every minute on Weekdays
         if now.weekday().num_days_from_monday() < 5 {
@@ -690,7 +840,28 @@ mod test {
         }
     }
 
-        #[tokio::test]
+    #[tokio::test]
+    async fn test_portfolio() {
+        let sql_connection = api::data::sql::connect();
+        let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
+        let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        if !filepath.is_dir() {
+            match std::fs::create_dir_all(filepath.clone()) {
+                Ok(()) => (),
+                Err(e) => {
+                    log::error!("Failed to create directory: {}", e);
+                },
+            }
+            filepath = dirs::home_dir().unwrap();
+        }
+        match run_portfolio_analysis(&symbols, &filepath) {
+            Ok(()) => {},
+            Err(e) => log::error!("screener process threw error: {}", e),
+        }
+    }
+
+
+    #[tokio::test]
     async fn test_screener() {
         let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
         if !filepath.is_dir() {

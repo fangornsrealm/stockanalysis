@@ -10,11 +10,19 @@ use crate::models::portfolio::Portfolio;
 use crate::analytics::statistics::{correlation_matrix, cumulative_returns_list, maximum_drawdown};
 use crate::charts::set_layout;
 
+fn performance_stats(tickers: crate::prelude::Tickers) -> Result<DataFrame, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        tickers.performance_stats()
+    )
+}
+
 pub trait PortfolioCharts {
     fn optimal_symbols(&self) -> Result<Vec<String>, Box<dyn Error>>;
     fn optimization_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>>;
     fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>>;
-    fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>>;
     fn returns_table(&self) -> Result<DataTable, Box<dyn Error>>;
     fn returns_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>>;
     fn returns_matrix(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>>;
@@ -239,11 +247,12 @@ impl PortfolioCharts for Portfolio {
     /// # Returns
     ///
     /// * `DataTable` Table Chart struct
-    async fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
+    fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let symbols = self.optimal_symbols()?;
-        let symbols_stats = self.tickers.performance_stats().await?;
+        let symbols_stats = performance_stats(self.tickers.clone())?;
         let symbols_series = Series::new("".into(), symbols);
-        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series).implode(), false)).collect()?;
+        let symbols_stats = symbols_stats.lazy().filter(col("Symbol")
+                .is_in(lit(symbols_series).implode(), false)).collect()?;
 
         let stats = &self.performance_stats.performance_stats;
 
