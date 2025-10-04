@@ -82,19 +82,20 @@ pub fn run_portfolio_analysis(
     };
     let archivepath = filepath.clone().join(date_based_name);
 
+    let start_date = three_months_ago.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
+    let end_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
     let portfolio = Portfolio::builder()
             .ticker_symbols(symbols.clone())
             .benchmark_symbol("0H1C")
-            .start_date("2025-03-01")
-            .end_date("2025-08-31")
+            .start_date(&start_date.naive_utc().to_string())
+            .end_date(&end_date.naive_utc().to_string())
             .interval(Interval::OneDay)
             .confidence_level(0.95)
             .risk_free_rate(0.02)
             .objective_function(ObjectiveFunction::MaxSharpe);
     let portfolio = build_portfolio(portfolio)?;
     let testportfolio = portfolio.clone();
-    let portfolio_clone;
-    let opt_chart = portfolio.optimization_chart(None, None)
+    let opt_chart = testportfolio.optimization_chart(None, None)
             .map_err(|e| format!("Optimization Chart error: {e}"));
     match opt_chart {
         Ok(chart) => {
@@ -114,7 +115,7 @@ pub fn run_portfolio_analysis(
         }
     }
     let testportfolio = portfolio.clone();
-    let perf_chart = portfolio.performance_chart(None, None)
+    let perf_chart = testportfolio.performance_chart(None, None)
             .map_err(|e| format!("Performance Chart error: {e}"));
     match perf_chart {
         Ok(chart) => {
@@ -134,7 +135,7 @@ pub fn run_portfolio_analysis(
         }
     }
     let testportfolio = portfolio.clone();
-    let perf_stats_chart = portfolio.performance_stats_table()
+    let perf_stats_chart = testportfolio.performance_stats_table()
             .map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html();
     match perf_stats_chart {
         Ok(chart) => {
@@ -149,7 +150,7 @@ pub fn run_portfolio_analysis(
         }
     }
     let testportfolio = portfolio.clone();
-    let returns_table = portfolio.returns_table().
+    let returns_table = testportfolio.returns_table().
             map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html();
     let file_name = "returns_table.html";
     let path = filepath.clone().join(file_name);
@@ -164,7 +165,7 @@ pub fn run_portfolio_analysis(
         }
     }
     let testportfolio = portfolio.clone();
-    let returns_chart = portfolio.returns_chart(None, None)
+    let returns_chart = testportfolio.returns_chart(None, None)
             .map_err(|e| format!("Returns Chart error: {e}"));
     match returns_chart {
         Ok(chart) => {
@@ -184,7 +185,7 @@ pub fn run_portfolio_analysis(
         }
     }
     let testportfolio = portfolio.clone();
-    let returns_matrix = portfolio.returns_matrix(None, None)
+    let returns_matrix = testportfolio.returns_matrix(None, None)
             .map_err(|e| format!("Returns Matrix error: {e}"));
     match returns_matrix {
         Ok(chart) => {
@@ -481,10 +482,12 @@ pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn
     Ok(())
 }
 
+#[allow(unreachable_code, unused_variables)]
 pub fn run_analysis_on_updated_dataframe(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>
 ) {
+    return; // TODO disable this function until we have a live data subscription
     let now = Local::now();
     
     for symbol in symbols.iter() {
@@ -694,7 +697,8 @@ pub fn run_analysis_on_historical_data(
             }
         };
         // start with a series split per business day
-        api::analytics::detectors::cluster_seasonal_data(api::analytics::detectors::vecs_to_slices(&vv));
+        let _clusters = api::analytics::detectors::cluster_seasonal_data(api::analytics::detectors::vecs_to_slices(&vv));
+
         let outliers = api::analytics::detectors::outliers(api::analytics::detectors::vecs_to_slices(&vv));
         if outliers.len() > 0 {
             // analyze outliers to find critical events
@@ -714,6 +718,39 @@ pub fn run_analysis_on_historical_data(
         let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 0.5, 0.3);
         api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
         
+    }
+}
+
+#[allow(unreachable_code, unused_variables)]
+fn get_livedata_active_symbols(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
+    symbols: &Vec<String>
+) {
+    return;  // TODO disable this function until we have a live data subscription
+    let nowish = Local::now();
+    let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
+    let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600 + 59*60, 0).expect("That should never fail!");
+    let start_date = nowish.clone().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap().and_time(start_time);
+    let end_date = nowish.clone().date_naive().and_time(end_time);
+    for symbol in symbols.iter() {
+        let mut metadata = api::data::sql::metadata(sql_connection.clone(), "XFRA", symbol);
+        metadata.start_date = start_date.and_utc();
+        metadata.end_date = end_date.and_utc();
+        let livedata = api::data::sql::live_data::live_data(sql_connection.clone(), &metadata);
+        if livedata.len() > 0 {
+            if livedata[0].len() > 0 {
+                let last_timestamp = livedata[0][livedata[0].len() - 1].datetime * 1000;
+                let last_timestamp = chrono::DateTime::from_timestamp_millis(last_timestamp).unwrap();
+                let nower = Local::now().naive_utc().and_utc();
+                let steps = (nower - last_timestamp).num_minutes() / 60;
+                let start_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60).unwrap();
+                let end_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60 * steps).unwrap();
+                let serieses = api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc()).unwrap();
+                for series in serieses {
+                    api::data::sql::live_data::insert_live_data(sql_connection.clone(), &metadata, &series);
+                }
+            }
+        }
     }
 }
 
@@ -770,7 +807,7 @@ pub async fn run_jobs() -> EyreResult<()> {
         // run live updates every minute on Weekdays
         if now.weekday().num_days_from_monday() < 5 {
             if now.hour() > 6 || now.hour() < 22 {
-                //get_livedata_active_symbols(sql_connection.clone(), &symbols);
+                get_livedata_active_symbols(sql_connection.clone(), &symbols);
 
                 // triger the live analysis and event detection
                 run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols);
