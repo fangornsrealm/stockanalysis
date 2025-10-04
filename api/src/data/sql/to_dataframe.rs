@@ -131,7 +131,7 @@ pub fn ohlcv_to_dataframe(
 }
 
 /// Returns the Ticker OHLCV Data from the database for a given time range
-pub async fn daily_ohlcv_to_dataframe(
+pub fn daily_ohlcv_to_dataframe(
     sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
     stock_symbol: &str,
     start_date: DateTime<Utc>,
@@ -178,11 +178,15 @@ pub async fn daily_ohlcv_to_dataframe(
         Ok(df)
     } else {
         // No entries in database. Get from Yahoo financial
-        crate::data::yahoo::api::get_chart(
-            &stock_symbol, 
-            &start_date.date_naive().to_string(),
-            &end_date.date_naive().to_string(),
-            crate::data::yahoo::config::Interval::OneDay).await
+        let handle = tokio::runtime::Handle::current();
+        let _ = handle.enter();
+        futures::executor::block_on(
+            crate::data::yahoo::api::get_chart(
+                &stock_symbol, 
+                &start_date.date_naive().to_string(),
+                &end_date.date_naive().to_string(),
+                crate::data::yahoo::config::Interval::OneDay)
+        )
     }
 }
 

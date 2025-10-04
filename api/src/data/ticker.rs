@@ -123,7 +123,7 @@ impl TickerData for Ticker {
                 }
                     .and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())
                     .and_utc();
-            match super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date).await {
+            match super::sql::to_dataframe::daily_ohlcv_to_dataframe(sql_connection, &self.ticker, start_date, end_date) {
                 Ok(ohlcv) => {
                     if ohlcv.height() > 0 {
                         return Ok(ohlcv);

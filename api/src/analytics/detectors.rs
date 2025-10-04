@@ -5,7 +5,7 @@ use augurs::{
     changepoint::{Detector as ChangepointDetector, DefaultArgpcpDetector},
     clustering::DbscanClusterer,
     dtw::Dtw,
-    ets::{AutoETS, FittedAutoETS},
+    ets::AutoETS,
     forecaster::{
         transforms::{LinearInterpolator, Log, MinMaxScaler},
         Forecaster, Transformer,

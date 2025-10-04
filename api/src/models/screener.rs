@@ -125,6 +125,7 @@ use crate::prelude::{DataTable, DataTableDisplay, DataTableFormat, QuoteType, Ti
 ///     Ok(())
 /// }
 /// ```
+#[derive(Clone)]
 pub struct Screener {
     pub quote_type: QuoteType,
     pub symbols: Vec<String>,
