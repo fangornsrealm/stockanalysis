@@ -372,7 +372,7 @@ async fn test_portfolio() -> Result<(), Box<dyn Error>> {
         match testportfolio {
         Ok(portfolio) => {
             let chart = 
-                portfolio.performance_stats_table().await.map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap();
+                portfolio.performance_stats_table().map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap();
                 Ok(chart)
         }
         Err(e) => {

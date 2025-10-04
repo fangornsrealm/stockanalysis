@@ -114,7 +114,7 @@ impl Report for Portfolio {
                 let performance_chart = self.performance_chart(None, None)?
                     .to_html().replace("plotly-html-element", "performance_chart");
                 tabs.push(("Performance Chart".to_string(), performance_chart));
-                let performance_stats = self.performance_stats_table().await?.to_html()?;
+                let performance_stats = self.performance_stats_table()?.to_html()?;
                 tabs.push(("Performance Stats".to_string(), performance_stats));
                 let returns_table = self.returns_table()?.to_html()?;
                 tabs.push(("Returns Data".to_string(), returns_table));
