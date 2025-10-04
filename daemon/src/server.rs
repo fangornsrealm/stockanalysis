@@ -26,11 +26,210 @@ pub struct Options {
     pub help: String,
 }
 
-pub async fn run_screener_process() -> Result<(), Box<dyn Error>> {
-    let filepath = std::path::PathBuf::from("testdata");
-    if !filepath.is_dir() {
-        std::fs::create_dir(filepath.clone())?;
+fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::PathBuf, file: &std::path::PathBuf) {
+    let oldpath = filepath.join(file);
+    let newpath = archivepath.join(file);
+    if !oldpath.exists() {
+        return;
     }
+    if !archivepath.is_dir() {
+        match std::fs::create_dir_all(archivepath) {
+            Ok(()) => (),
+            Err(e) => {
+                log::error!("Failed to create directory: {}", e);
+                return;
+            },
+        }
+    }
+    match std::fs::hard_link(oldpath.clone(), newpath) {
+        Ok(()) => (),
+        Err(e) => {
+            log::error!("Failed to link file: {}", e);
+            return;
+        },
+    }
+    match std::fs::remove_file(oldpath) {
+        Ok(()) => (),
+        Err(e) => {
+            log::error!("Failed to remove file: {}", e);
+            return;
+        },
+    }
+
+}
+
+fn get_chart_daily(ticker: &Ticker) -> Result<DataFrame, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.get_chart_daily()
+    )
+}
+
+fn candlestick_chart_async(ticker: &Ticker) -> Result<plotly::plot::Plot, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.candlestick_chart(None, None)
+    )
+}
+
+fn candlestick_chart_live_async(ticker: &Ticker) -> Result<plotly::plot::Plot, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.candlestick_chart_live(None, None)
+    )
+}
+
+fn run_ticker_charts(
+    symbolsstrings: &Vec<String>,
+    filepath: &std::path::PathBuf
+) -> Result<(), Box<dyn Error>> {
+    // 
+    let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
+    let days = chrono::Local::now().weekday().num_days_from_monday();
+    let three_months_ago = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap();
+    let yesterday = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap();
+    let date_based_name = if days < 5 {
+        format!("archive_{}", yesterday.to_string())
+    } else {
+        return Ok(());
+    };
+    let archivepath = filepath.clone().join(date_based_name);
+
+    let mut tickers = Vec::new();
+    let start_date = three_months_ago.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
+    let end_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
+
+    for i in 0..symbols.len() {
+        let stock_symbol = symbols[i].to_string();
+        let mut ticker: Ticker = api::models::ticker::TickerBuilder::new()
+            .ticker(&stock_symbol)
+            .start_date(&start_date.naive_utc().to_string())
+            .end_date(&end_date.naive_utc().to_string())
+            .benchmark_symbol("0H1C")
+            .interval(Interval::OneDay)
+            .build();
+
+        let df = get_chart_daily(&ticker).unwrap();
+        let table = df.to_datatable("ohlcv", true, DataTableFormat::Number);
+        let html = table.to_html()?;
+        let mut file_name = stock_symbol.clone();
+        file_name.extend(".html".chars());
+        let path = filepath.clone().join(file_name);
+        std::fs::write(&path, &html).expect("Should be able to write to file");
+        match candlestick_chart_async(&ticker) {
+            Ok(pl) => {
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart.jpg".chars());
+                let path = filepath.clone().join(file_name);
+                move_file_to_archive(filepath, &archivepath, &path);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+                let html = pl.to_html();
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart.html".chars());
+                let path = filepath.clone().join(file_name);
+                move_file_to_archive(filepath, &archivepath, &path);
+                std::fs::write(&path, &html).expect("Should be able to write to file");
+            },
+            Err(error) => {
+                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                continue;
+            },
+        }
+        // get only the last stock day.
+        // TODO: Replace by live data
+        let start_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
+        let end_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
+        ticker.start_date = start_date.naive_utc().to_string();
+        ticker.end_date = end_date.naive_utc().to_string();
+        if end_date.timestamp_millis() <= start_date.timestamp_millis() {
+            log::error!("timestamps are do not span a time span!");
+        }
+        match candlestick_chart_live_async(&ticker) {
+            Ok(pl) => {
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart_live.jpg".chars());
+                let path = filepath.clone().join(file_name);
+                move_file_to_archive(filepath, &archivepath, &path);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+                let html = pl.to_html();
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart_live.html".chars());
+                let path = filepath.clone().join(file_name);
+                move_file_to_archive(filepath, &archivepath, &path);
+                std::fs::write(&path, &html).expect("Should be able to write to file");
+            },
+            Err(error) => {
+                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                continue;
+            },
+        }
+        //println!("{}", html);
+        tickers.push(ticker);
+        //table.show()?;
+    }
+    Ok(())
+}
+
+fn build_screener(screener: ScreenerBuilder) -> Result<Screener, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        screener.build()
+    )
+}
+
+fn metrics(screener: Screener) -> Result<DataTable, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        screener.metrics()
+    )
+}
+
+fn get_ticker(tickers: Tickers, symbol: &str) -> Result<Ticker, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        tickers.get_ticker(symbol)
+    )
+}
+
+fn optimize(tickers: Tickers, objective: Option<api::prelude::ObjectiveFunction>) -> Result<api::prelude::Portfolio, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        tickers.optimize(objective, None)
+    )
+}
+
+fn report(ticker: Ticker, reporttype: Option<ReportType>) -> Result<api::reports::tabs::TabbedHtml, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.report(reporttype)
+    )
+}
+
+fn report_portfolio(ticker: api::prelude::Portfolio, reporttype: Option<ReportType>) -> Result<api::reports::tabs::TabbedHtml, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.report(reporttype)
+    )
+}
+
+pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn Error>> {
+    let days = chrono::Local::now().weekday().num_days_from_monday();
+    let yesterday = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap();
+    let date_based_name = if days < 5 {
+        format!("archive_{}", yesterday.to_string())
+    } else {
+        return Ok(());
+    };
+    let archivepath = filepath.clone().join(date_based_name);
     // Screen for Large-Cap NASDAQ Stocks
     let screener = Screener::builder()
         .quote_type(QuoteType::Equity)
@@ -42,15 +241,16 @@ pub async fn run_screener_process() -> Result<(), Box<dyn Error>> {
             ScreenerMetric::Equity(EquityScreener::MarketCapIntraday),
             true
         )
-        .size(10)
-        .build()
-        .await?;
-
+        .size(10);
+    let screener = build_screener(screener)?;
     let file_name = "screener_overview.html";
     let path = filepath.clone().join(file_name);
-    let overview = screener.overview().to_html();
+    let overview = screener.clone().overview().to_html();
     match overview {
-        Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get overview for screener: {e}");
             return Ok(());
@@ -59,9 +259,12 @@ pub async fn run_screener_process() -> Result<(), Box<dyn Error>> {
 
     let file_name = "screener_metrics.html";
     let path = filepath.clone().join(file_name);
-    let metrics = screener.metrics().await?.to_html();
+    let metrics = metrics(screener.clone())?.to_html();
     match metrics {
-        Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
+        Ok(chart) => {
+            move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
+        },
         Err(e) => {
             log::error!("Failed to get metrics for screener: {e}");
             return Ok(());
@@ -84,37 +287,43 @@ pub async fn run_screener_process() -> Result<(), Box<dyn Error>> {
 
     // Generate a Single Ticker Report
     let symbol = ticker_symbols.first().unwrap();
-    let ticker = tickers.clone().get_ticker(symbol).await?;
-    let performance = ticker.report(Some(ReportType::Performance)).await?.to_html();
+    let ticker = get_ticker(tickers.clone(), symbol)?;
+    let performance = report(ticker.clone(), Some(ReportType::Performance))?.to_html();
     let file_name = "screener_top_performance.html";
     let path = filepath.clone().join(file_name);
+    move_file_to_archive(filepath, &archivepath, &path);
     std::fs::write(&osstr_to_string(path.into_os_string()), &performance).expect("Should be able to write to file");
-    let financials = ticker.report(Some(ReportType::Financials)).await?.to_html();
+    let financials = report(ticker.clone(), Some(ReportType::Financials))?.to_html();
     let file_name = "screener_financials.html";
     let path = filepath.clone().join(file_name);
+    move_file_to_archive(filepath, &archivepath, &path);
     std::fs::write(&osstr_to_string(path.into_os_string()), &financials).expect("Should be able to write to file");
-    let options = ticker.report(Some(ReportType::Options)).await?.to_html();
+    let options = report(ticker.clone(), Some(ReportType::Options))?.to_html();
     let file_name = "screener_options.html";
     let path = filepath.clone().join(file_name);
+    move_file_to_archive(filepath, &archivepath, &path);
     std::fs::write(&osstr_to_string(path.into_os_string()), &options).expect("Should be able to write to file");
-    let news = ticker.report(Some(ReportType::News)).await?.to_html();
+    let news = report(ticker.clone(), Some(ReportType::News))?.to_html();
     let file_name = "screescreener_newsner_overview.html";
     let path = filepath.clone().join(file_name);
+    move_file_to_archive(filepath, &archivepath, &path);
     std::fs::write(&osstr_to_string(path.into_os_string()), &news).expect("Should be able to write to file");
 
     // Generate a Multiple Ticker Report
-    let report = tickers.report(Some(ReportType::Performance)).await?.to_html();
+    let report = report(ticker.clone(), Some(ReportType::Performance))?.to_html();
     let file_name = "screener_report.html";
     let path = filepath.clone().join(file_name);
+    move_file_to_archive(filepath, &archivepath, &path);
     std::fs::write(&osstr_to_string(path.into_os_string()), &report).expect("Should be able to write to file");
 
     // Perform a Portfolio Optimization
-    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+    let portfolio = optimize(tickers.clone(), Some(ObjectiveFunction::MaxSharpe))?;
 
     // Generate a Portfolio Report
-    let portfolioreport = portfolio.report(Some(ReportType::Performance)).await?.to_html();
+    let portfolioreport = report_portfolio(portfolio.clone(), Some(ReportType::Performance))?.to_html();
     let file_name = "screener_portfolioreport.html";
     let path = filepath.clone().join(file_name);
+    move_file_to_archive(filepath, &archivepath, &path);
     std::fs::write(&osstr_to_string(path.into_os_string()), &portfolioreport).expect("Should be able to write to file");
 
     // TODO write a HTML file with links to the written HTML files
@@ -220,6 +429,7 @@ pub fn run_analysis_on_updated_dataframe(
         let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 0.5, 0.3);
         api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
         
+        // detect a increasing or decreasing slope and raise a notification
         let slope = api::analytics::detectors::increasing_slope(&vv[vv.len()-1], 0.5, 0.3);
         if slope != 0.0 {
             // send alarm
@@ -321,7 +531,7 @@ pub fn run_analysis_on_historical_data(
                 continue;
             }
         };
-        let datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let _datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 log::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -344,12 +554,12 @@ pub fn run_analysis_on_historical_data(
 
         let seasonality = api::analytics::detectors::seasonality(&adjclose, 10, 9600, 0.2, false);
         for season_length in seasonality {
-            let s = api::analytics::detectors::split_series_into_seasons(&adjclose, season_length as i64, 1);
-            let outliers = api::analytics::detectors::outliers(api::analytics::detectors::vecs_to_slices(&vv));
+            let _s = api::analytics::detectors::split_series_into_seasons(&adjclose, season_length as i64, 1);
+            let _outliers = api::analytics::detectors::outliers(api::analytics::detectors::vecs_to_slices(&vv));
         }
         
         let changepoints = api::analytics::detectors::changepoints(&adjclose, true);
-        for changepoint in changepoints {
+        for _changepoint in changepoints {
             // analyze changepoints
         }
 
@@ -363,9 +573,20 @@ pub async fn run_jobs() -> EyreResult<()> {
     let now = Local::now();
     let sql_connection = api::data::sql::connect();
     let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
+    let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+    if !filepath.is_dir() {
+        match std::fs::create_dir_all(filepath.clone()) {
+            Ok(()) => (),
+            Err(e) => {
+                log::error!("Failed to create directory: {}", e);
+            },
+        }
+        filepath = dirs::home_dir().unwrap();
+    }
     if now.hour() == 23 && now.minute() == 0 {
         // run daily jobs.
         api::data::livedata::update_nightly(sql_connection.clone(), &symbols);
+        
         // temporarily get the minutely data also once per day until there is a subscription with live-data access
         let start_time = NaiveTime::from_num_seconds_from_midnight_opt(7*3600, 0).expect("That should never fail!");
         let end_time = NaiveTime::from_num_seconds_from_midnight_opt(22*3600, 0).expect("That should never fail!");
@@ -391,7 +612,9 @@ pub async fn run_jobs() -> EyreResult<()> {
         }
         run_analysis_on_historical_data(sql_connection.clone(), &symbols);
 
-        let _ret = run_screener_process();
+        let _ret = run_screener_process(&filepath);
+
+        let _ret = run_ticker_charts(&symbols, &filepath);
 
     } else {
         // run live updates every minute on Weekdays
@@ -448,8 +671,38 @@ mod test {
     }
 
     #[tokio::test]
+    async fn test_charts() {
+        let sql_connection = api::data::sql::connect();
+        let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
+        let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        if !filepath.is_dir() {
+            match std::fs::create_dir_all(filepath.clone()) {
+                Ok(()) => (),
+                Err(e) => {
+                    log::error!("Failed to create directory: {}", e);
+                },
+            }
+            filepath = dirs::home_dir().unwrap();
+        }
+        match run_ticker_charts(&symbols, &filepath) {
+            Ok(()) => {},
+            Err(e) => log::error!("screener process threw error: {}", e),
+        }
+    }
+
+        #[tokio::test]
     async fn test_screener() {
-        match run_screener_process().await {
+        let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        if !filepath.is_dir() {
+            match std::fs::create_dir_all(filepath.clone()) {
+                Ok(()) => (),
+                Err(e) => {
+                    log::error!("Failed to create directory: {}", e);
+                },
+            }
+            filepath = dirs::home_dir().unwrap();
+        }
+        match run_screener_process(&filepath) {
             Ok(()) => {},
             Err(e) => log::error!("screener process threw error: {}", e),
         }

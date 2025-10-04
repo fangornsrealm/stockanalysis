@@ -3990,6 +3990,7 @@ dependencies = [
  "mimalloc",
  "notify-rust",
  "once_cell",
+ "plotly",
  "polars 0.49.1",
  "pretty_assertions",
  "prometheus",
