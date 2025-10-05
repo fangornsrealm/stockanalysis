@@ -72,15 +72,9 @@ pub fn run_portfolio_analysis(
 ) -> Result<(), Box<dyn Error>> {
     // 
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
-    let days = chrono::Local::now().weekday().num_days_from_monday();
     let three_months_ago = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap();
-    let yesterday = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap();
-    let date_based_name = if days < 5 {
-        format!("archive_{}", yesterday.to_string())
-    } else {
-        return Ok(());
-    };
-    let archivepath = filepath.clone().join(date_based_name);
+    let yesterday = yesterday();
+    let archivepath = archive_path(filepath);
 
     let start_date = three_months_ago.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
     let end_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
@@ -231,36 +225,116 @@ fn candlestick_chart_live_async(ticker: &Ticker) -> Result<plotly::plot::Plot, B
     )
 }
 
+fn yesterday() -> chrono::NaiveDate {
+    let days = chrono::Utc::now().weekday().num_days_from_monday();
+    if days < 5 {
+        chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap()
+    } else if days == 5 {
+        chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(2)).unwrap()
+    } else {
+        chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(3)).unwrap()
+    } 
+}
+
+fn run_ticker_charts_livedata(
+    symbolsstrings: &Vec<String>,
+    filepath: &std::path::PathBuf,
+    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
+) -> Result<(), Box<dyn Error>> {
+    let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
+    let yesterday = yesterday();
+    let archivepath = archive_path(filepath);
+    for i in 0..symbols.len() {
+        let stock_symbol = symbols[i].to_string();
+        let today = yesterday.checked_add_days(chrono::Days::new(1)).unwrap();
+        let start_date = today.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
+        let end_date = today.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
+        let mut ticker: Ticker;
+        let mut tickers = match tickers_mutex.lock() {
+            Ok(t) => t,
+            Err(error) => {
+                log::error!("Failed to lock tichers hash for use! {}", error);
+                return Ok(());
+            }
+        };
+        if !tickers.contains_key(&stock_symbol) {
+            ticker= api::models::ticker::TickerBuilder::new()
+                .ticker(&stock_symbol)
+                .start_date(&start_date.naive_utc().to_string())
+                .end_date(&end_date.naive_utc().to_string())
+                .benchmark_symbol("0H1C")
+                .interval(Interval::OneDay)
+                .build();
+            tickers.insert(stock_symbol.clone(), ticker.clone());
+        } else {
+            ticker = tickers[&stock_symbol].clone();
+            ticker.start_date = start_date.naive_utc().to_string();
+            ticker.end_date = end_date.naive_utc().to_string();
+        }
+        if end_date.timestamp_millis() <= start_date.timestamp_millis() {
+            log::error!("timestamps are do not span a time span!");
+        }
+        match candlestick_chart_live_async(&ticker) {
+            Ok(pl) => {
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart_live.jpg".chars());
+                let path = filepath.clone().join(file_name);
+                move_file_to_archive(filepath, &archivepath, &path);
+                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+                let html = pl.to_html();
+                let mut file_name = stock_symbol.clone();
+                file_name.extend("_chart_live.html".chars());
+                let path = filepath.clone().join(file_name);
+                move_file_to_archive(filepath, &archivepath, &path);
+                std::fs::write(&path, &html).expect("Should be able to write to file");
+            },
+            Err(error) => {
+                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                continue;
+            },
+        }
+    }
+    Ok(())
+}
+
 fn run_ticker_charts(
     symbolsstrings: &Vec<String>,
-    filepath: &std::path::PathBuf
+    filepath: &std::path::PathBuf,
+    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
 ) -> Result<(), Box<dyn Error>> {
     // 
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
-    let days = chrono::Local::now().weekday().num_days_from_monday();
     let three_months_ago = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap();
-    let yesterday = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap();
-    let date_based_name = if days < 5 {
-        format!("archive_{}", yesterday.to_string())
-    } else {
-        return Ok(());
-    };
-    let archivepath = filepath.clone().join(date_based_name);
+    let yesterday = yesterday();
+    let archivepath = archive_path(filepath);
 
-    let mut tickers = Vec::new();
     let start_date = three_months_ago.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
     let end_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
 
     for i in 0..symbols.len() {
         let stock_symbol = symbols[i].to_string();
-        let mut ticker: Ticker = api::models::ticker::TickerBuilder::new()
-            .ticker(&stock_symbol)
-            .start_date(&start_date.naive_utc().to_string())
-            .end_date(&end_date.naive_utc().to_string())
-            .benchmark_symbol("0H1C")
-            .interval(Interval::OneDay)
-            .build();
-
+        let mut ticker: Ticker;
+        let mut tickers = match tickers_mutex.lock() {
+            Ok(t) => t,
+            Err(error) => {
+                log::error!("Failed to lock tichers hash for use! {}", error);
+                return Ok(());
+            }
+        };
+        if !tickers.contains_key(&stock_symbol) {
+            ticker= api::models::ticker::TickerBuilder::new()
+                .ticker(&stock_symbol)
+                .start_date(&start_date.naive_utc().to_string())
+                .end_date(&end_date.naive_utc().to_string())
+                .benchmark_symbol("0H1C")
+                .interval(Interval::OneDay)
+                .build();
+            tickers.insert(stock_symbol.clone(), ticker.clone());
+        } else {
+            ticker = tickers[&stock_symbol].clone();
+            ticker.start_date = start_date.naive_utc().to_string();
+            ticker.end_date = end_date.naive_utc().to_string();
+        }
         let df = get_chart_daily(&ticker).unwrap();
         let table = df.to_datatable("ohlcv", true, DataTableFormat::Number);
         let html = table.to_html()?;
@@ -287,38 +361,8 @@ fn run_ticker_charts(
                 continue;
             },
         }
-        // get only the last stock day.
-        // TODO: Replace by live data
-        let start_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
-        let end_date = yesterday.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
-        ticker.start_date = start_date.naive_utc().to_string();
-        ticker.end_date = end_date.naive_utc().to_string();
-        if end_date.timestamp_millis() <= start_date.timestamp_millis() {
-            log::error!("timestamps are do not span a time span!");
-        }
-        match candlestick_chart_live_async(&ticker) {
-            Ok(pl) => {
-                let mut file_name = stock_symbol.clone();
-                file_name.extend("_chart_live.jpg".chars());
-                let path = filepath.clone().join(file_name);
-                move_file_to_archive(filepath, &archivepath, &path);
-                pl.to_jpeg(&osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
-                let html = pl.to_html();
-                let mut file_name = stock_symbol.clone();
-                file_name.extend("_chart_live.html".chars());
-                let path = filepath.clone().join(file_name);
-                move_file_to_archive(filepath, &archivepath, &path);
-                std::fs::write(&path, &html).expect("Should be able to write to file");
-            },
-            Err(error) => {
-                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
-                continue;
-            },
-        }
-        //println!("{}", html);
-        tickers.push(ticker);
-        //table.show()?;
     }
+    run_ticker_charts_livedata(symbolsstrings, filepath, tickers_mutex)?;
     Ok(())
 }
 
@@ -370,15 +414,19 @@ fn report_portfolio(ticker: api::prelude::Portfolio, reporttype: Option<ReportTy
     )
 }
 
-pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn Error>> {
+fn archive_path(filepath: &std::path::PathBuf) -> std::path::PathBuf {
     let days = chrono::Local::now().weekday().num_days_from_monday();
     let yesterday = chrono::Local::now().date_naive().checked_sub_days(chrono::Days::new(1)).unwrap();
     let date_based_name = if days < 5 {
         format!("archive_{}", yesterday.to_string())
     } else {
-        return Ok(());
+        "archive_test".to_string()
     };
-    let archivepath = filepath.clone().join(date_based_name);
+    filepath.clone().join(date_based_name)
+}
+
+pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn Error>> {
+    let archivepath = archive_path(filepath);
     // Screen for Large-Cap NASDAQ Stocks
     let screener = Screener::builder()
         .quote_type(QuoteType::Equity)
@@ -704,13 +752,13 @@ pub fn run_analysis_on_historical_data(
             // analyze outliers to find critical events
         }
 
-        let seasonality = api::analytics::detectors::seasonality(&adjclose, 10, 9600, 0.2, false);
+        let seasonality = api::analytics::detectors::seasonality(&adjclose, 10, 9600, 0.1, false);
         for season_length in seasonality {
             let _s = api::analytics::detectors::split_series_into_seasons(&adjclose, season_length as i64, 1);
             let _outliers = api::analytics::detectors::outliers(api::analytics::detectors::vecs_to_slices(&vv));
         }
         
-        let changepoints = api::analytics::detectors::changepoints(&adjclose, true);
+        let changepoints = api::analytics::detectors::changepoints(&adjclose, false);
         for _changepoint in changepoints {
             // analyze changepoints
         }
@@ -722,7 +770,7 @@ pub fn run_analysis_on_historical_data(
 }
 
 #[allow(unreachable_code, unused_variables)]
-fn get_livedata_active_symbols(
+fn get_livedata_for_active_symbols(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>
 ) {
@@ -754,7 +802,7 @@ fn get_livedata_active_symbols(
     }
 }
 
-pub async fn run_jobs() -> EyreResult<()> {
+pub async fn run_jobs(tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>) -> EyreResult<()> {
     let now = Local::now();
     let sql_connection = api::data::sql::connect();
     let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
@@ -799,7 +847,7 @@ pub async fn run_jobs() -> EyreResult<()> {
 
         let _ret = run_screener_process(&filepath);
 
-        let _ret = run_ticker_charts(&symbols, &filepath);
+        let _ret = run_ticker_charts(&symbols, &filepath, tickers.clone());
 
         let _ret = run_portfolio_analysis(&symbols, &filepath);
 
@@ -807,10 +855,25 @@ pub async fn run_jobs() -> EyreResult<()> {
         // run live updates every minute on Weekdays
         if now.weekday().num_days_from_monday() < 5 {
             if now.hour() > 6 || now.hour() < 22 {
-                get_livedata_active_symbols(sql_connection.clone(), &symbols);
+                get_livedata_for_active_symbols(sql_connection.clone(), &symbols);
+
+                // create recent charts for active stock symbols
+                let mut live_filepath = filepath.clone().join("live_charts");
+                if !live_filepath.is_dir() {
+                    match std::fs::create_dir_all(live_filepath.clone()) {
+                        Ok(()) => (),
+                        Err(e) => {
+                            log::error!("Failed to create directory: {}", e);
+                        },
+                    }
+                    live_filepath = dirs::home_dir().unwrap();
+                }
+
+                let _ret = run_ticker_charts_livedata(&symbols, &live_filepath, tickers.clone());
 
                 // triger the live analysis and event detection
                 run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols);
+
 
                 
             }
@@ -822,12 +885,15 @@ pub async fn run_jobs() -> EyreResult<()> {
 }
 
 pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreResult<()> {
-
+    let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::HashMap::new()
+            ));
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60));
         loop {
             interval.tick().await; // This should go first.
-            tokio::spawn(run_jobs());
+            tokio::spawn(run_jobs(tickers.clone()));
         }
     });
     // Wait for shutdown
@@ -862,6 +928,10 @@ mod test {
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
         let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::HashMap::new()
+            ));
         if !filepath.is_dir() {
             match std::fs::create_dir_all(filepath.clone()) {
                 Ok(()) => (),
@@ -871,7 +941,7 @@ mod test {
             }
             filepath = dirs::home_dir().unwrap();
         }
-        match run_ticker_charts(&symbols, &filepath) {
+        match run_ticker_charts(&symbols, &filepath, tickers.clone()) {
             Ok(()) => {},
             Err(e) => log::error!("screener process threw error: {}", e),
         }
@@ -918,7 +988,11 @@ mod test {
 
     #[tokio::test]
     async fn test_run_jobs() {
-        match run_jobs().await {
+        let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::HashMap::new()
+            ));
+        match run_jobs(tickers.clone()).await {
             Ok(()) => {},
             Err(e) => log::error!("screener process threw error: {}", e),
         }
