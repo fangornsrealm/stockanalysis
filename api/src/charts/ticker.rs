@@ -262,6 +262,9 @@ impl TickerCharts for Ticker {
 
     async fn candlestick_chart_live(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let ohlcv = self.get_chart().await?;
+        if ohlcv.height() < 6 {
+            return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
