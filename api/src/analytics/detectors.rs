@@ -69,6 +69,8 @@ pub fn increasing_slope(series: &Vec<f64>, threshold_up: f64, threshold_down: f6
 
 /// detect jumps in the series and return the percentage if it is larger than limit up or limit down
 /// and the position in the list
+/// Analyses for a jump within max. 5 minutes in one contiguous direction
+/// that is larger than the threshold
 pub fn jumps_in_series(
     symbol: &str, 
     timestamps: &Vec<i64>, 
@@ -82,8 +84,13 @@ pub fn jumps_in_series(
         return v;
     }
     for i in 1..series.len() {
-        let change = series[i] - series[i - 1];
+        let mut change = series[i] - series[i - 1];
         if change < 0.0 {
+            let mut j = 1;
+            while j < 5 && i + j < series.len() && series[i + j] < series[i + j - 1] {
+                change += series[i + j] - series[i + j - 1];
+                j += 1;
+            }
             let percentage = change.abs() / series[i - 1] * 100.0;
             if threshold_down.abs() < percentage {
                 let s = crate::data::sql::JumpEventData {
@@ -95,6 +102,11 @@ pub fn jumps_in_series(
                 v.push(s);
             }
         } else {
+            let mut j = 1;
+            while j < 5 && i + j < series.len() && series[i + j] > series[i + j - 1] {
+                change += series[i + j] - series[i + j - 1];
+                j += 1;
+            }
             let percentage = change / series[i - 1] * 100.0;
             if threshold_up < percentage {
                 let s = crate::data::sql::JumpEventData {
@@ -110,6 +122,7 @@ pub fn jumps_in_series(
     v
 }
 
+/// 
 pub fn recurring_events_in_series(
     symbol: &str, 
     timestamps: &Vec<i64>, 
@@ -136,6 +149,95 @@ pub fn recurring_events_in_series(
 
     v
 }
+
+/// Partitions a series into local minima and maxima
+/// Attempts to ignore noise by building a smoothed curve of averages every n values
+pub fn local_min_max(
+    series: &Vec<f64>, 
+) -> (Vec<usize>, Vec<usize>)
+{
+    let mut local_min = Vec::new();
+    let mut local_max = Vec::new();
+
+    if series.len() < 2 {
+        return (local_min, local_max);
+    }
+    let smooth_5 = smooth_series(series, 5);
+    //let smooth_3 = smooth_series(series, 3);
+    let mut slope;
+    if series[1] < series[0] {
+        local_max.push(0);
+        slope = -1;
+    } else {
+        local_min.push(0);
+        slope = 1;
+    }
+    for i in 1..smooth_5.len() {
+        if smooth_5[i] < smooth_5[i - 1] && slope > 0 {
+            let start = (i-1)*5;
+            let end = i * 5;
+            for j in start..end {
+                if series[j] < series[j - 1] && slope > 0 {
+                    local_max.push(i * 5);
+                    slope = -1;
+                }
+            }
+        } else if smooth_5[i] > smooth_5[i - 1] && slope < 0 {
+            let start = (i-1)*5;
+            let end = i * 5;
+            for j in start..end {
+                if series[j] > series[j - 1] && slope < 0 {
+                    local_min.push(i * 5);
+                    slope = 1;
+                }
+            }
+        }
+    }
+    if local_min.len() < local_max.len() {
+        local_min.push(series.len()-1);
+    } else if local_min.len() > local_max.len() {
+        local_max.push(series.len()-1);
+    }
+    (local_min, local_max)
+}
+
+/// scans a range of values for signs of increasing slope of increasing or decreasing values.
+/// Attempts to ignore noise by building a smoothed curve of averages every n values
+pub fn find_increasing_slope(
+    series: &Vec<f64>, 
+    threshold_up: f64, 
+    threshold_down: f64, 
+) -> (f64, usize) 
+{
+    let slope = 0.0;
+    let pos = 0;
+    if series.len() < 10 {
+        return (slope, pos);
+    }
+
+    let smooth_5 = smooth_series(series, 5);
+    for i in 2..smooth_5.len() {
+        if smooth_5[i] > smooth_5[i-1] && smooth_5[i-1] > smooth_5[i-2] {
+            //let pos1 = (i-2)*5;
+            let pos2 = (i-1)*5;
+            let pos3 = i*5;
+            let slope3 = (series[pos3] - series[pos2]) / series[pos2] * 100.0;
+            if slope3 > threshold_up {
+                return (slope3, pos3);
+            }
+        } else if smooth_5[i] < smooth_5[i-1] && smooth_5[i-1] < smooth_5[i-2] {
+            //let pos1 = (i-2)*5;
+            let pos2 = (i-1)*5;
+            let pos3 = i*5;
+            let slope3 = (series[pos3] - series[pos2]) / series[pos2] * 100.0;
+            if slope3.abs() > threshold_down.abs() {
+                return (slope3, pos3);
+            }
+        }
+    }
+    (slope, pos)
+}
+
 
 /// detect seasonality
 pub fn _seasonality_default(series: &Vec<f64>, smooth: bool) -> Vec<usize> {
@@ -404,13 +506,13 @@ pub fn forecast_prophet(series: Vec<f64>, timestamps_millis: &Vec<i64>) -> Resul
 }
 
 /// split series into chunks
-pub fn split_series_into_seasons(series: &Vec<f64>, minutes_per_period: i64, minutes_per_step: i64) -> Vec<Vec<f64>> {
+pub fn split_series_into_seasons<T: Clone>(series: &Vec<T>, minutes_per_period: i64, minutes_per_step: i64) -> Vec<Vec<T>> {
     let mut v = Vec::new();
     let pivot = minutes_per_period / minutes_per_step as i64;
     let mut count = 0;
     let mut w = Vec::new();
     for f in series {
-        w.push(f.to_owned());
+        w.push(f.clone());
         count += 1;
         if count % pivot == 0 {
             v.push(w.clone());
