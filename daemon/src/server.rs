@@ -36,7 +36,7 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
         match std::fs::create_dir_all(archivepath) {
             Ok(()) => (),
             Err(e) => {
-                log::error!("Failed to create directory: {}", e);
+                tracing::error!("Failed to create directory: {}", e);
                 return;
             },
         }
@@ -44,14 +44,14 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
     match std::fs::hard_link(oldpath.clone(), newpath) {
         Ok(()) => (),
         Err(e) => {
-            log::error!("Failed to link file: {}", e);
+            tracing::error!("Failed to link file: {}", e);
             return;
         },
     }
     match std::fs::remove_file(oldpath) {
         Ok(()) => (),
         Err(e) => {
-            log::error!("Failed to remove file: {}", e);
+            tracing::error!("Failed to remove file: {}", e);
             return;
         },
     }
@@ -104,7 +104,7 @@ pub fn run_portfolio_analysis(
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -124,7 +124,7 @@ pub fn run_portfolio_analysis(
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -139,7 +139,7 @@ pub fn run_portfolio_analysis(
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -154,7 +154,7 @@ pub fn run_portfolio_analysis(
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file");
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -174,7 +174,7 @@ pub fn run_portfolio_analysis(
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -194,7 +194,7 @@ pub fn run_portfolio_analysis(
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -253,7 +253,7 @@ fn run_ticker_charts_livedata(
         let mut tickers = match tickers_mutex.lock() {
             Ok(t) => t,
             Err(error) => {
-                log::error!("Failed to lock tichers hash for use! {}", error);
+                tracing::error!("Failed to lock tichers hash for use! {}", error);
                 return Ok(());
             }
         };
@@ -272,7 +272,7 @@ fn run_ticker_charts_livedata(
             ticker.end_date = end_date.naive_utc().to_string();
         }
         if end_date.timestamp_millis() <= start_date.timestamp_millis() {
-            log::error!("timestamps are do not span a time span!");
+            tracing::error!("timestamps are do not span a time span!");
         }
         match candlestick_chart_live_async(&ticker) {
             Ok(pl) => {
@@ -289,7 +289,7 @@ fn run_ticker_charts_livedata(
                 std::fs::write(&path, &html).expect("Should be able to write to file");
             },
             Err(error) => {
-                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
                 continue;
             },
         }
@@ -317,7 +317,7 @@ fn run_ticker_charts(
         let mut tickers = match tickers_mutex.lock() {
             Ok(t) => t,
             Err(error) => {
-                log::error!("Failed to lock tichers hash for use! {}", error);
+                tracing::error!("Failed to lock tichers hash for use! {}", error);
                 return Ok(());
             }
         };
@@ -357,7 +357,7 @@ fn run_ticker_charts(
                 std::fs::write(&path, &html).expect("Should be able to write to file");
             },
             Err(error) => {
-                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
                 continue;
             },
         }
@@ -449,7 +449,7 @@ pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get overview for screener: {e}");
+            tracing::error!("Failed to get overview for screener: {e}");
             return Ok(());
         }
     }
@@ -463,7 +463,7 @@ pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get metrics for screener: {e}");
+            tracing::error!("Failed to get metrics for screener: {e}");
             return Ok(());
         }
     }
@@ -559,14 +559,14 @@ pub fn run_analysis_on_updated_dataframe(
                 match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&df) {
                     Ok(tv) => vt.push(tv),
                     Err(error) => {
-                        log::error!("Unable to turn get column timestamp! {:?}", error);
+                        tracing::error!("Unable to turn get column timestamp! {:?}", error);
                         continue;
                     }
                 };
                 match api::data::sql::to_dataframe::f64_column_to_vec(&df, "adjclose") {
                     Ok(av) => vv.push(av),
                     Err(error) => {
-                        log::error!("Unable to turn get column adjclose! {:?}", error);
+                        tracing::error!("Unable to turn get column adjclose! {:?}", error);
                         continue;
                     }
                 };
@@ -576,14 +576,14 @@ pub fn run_analysis_on_updated_dataframe(
                         match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&dftmp) {
                             Ok(tv) => vt.push(tv),
                             Err(error) => {
-                                log::error!("Unable to turn get column timestamp! {:?}", error);
+                                tracing::error!("Unable to turn get column timestamp! {:?}", error);
                                 continue;
                             }
                         };
                         match api::data::sql::to_dataframe::f64_column_to_vec(&dftmp, "adjclose") {
                             Ok(av) => vv.push(av),
                             Err(error) => {
-                                log::error!("Unable to turn get column adjclose! {:?}", error);
+                                tracing::error!("Unable to turn get column adjclose! {:?}", error);
                                 continue;
                             }
                         };
@@ -599,28 +599,28 @@ pub fn run_analysis_on_updated_dataframe(
 
             },
             Err(e) => {
-                log::error!("Failed to get dataframe from database for symbol {}: {}", symbol, e);
+                tracing::error!("Failed to get dataframe from database for symbol {}: {}", symbol, e);
                 continue;
             }
         };
         let timestamps = match api::data::sql::to_dataframe::i64_column_to_vec(&ohlcv, "timestamp") {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn get column timestamp! {:?}", error);
+                tracing::error!("Unable to turn get column timestamp! {:?}", error);
                 continue;
             }
         };
         let datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 continue;
             }
         };
         let adjclose = match api::data::sql::to_dataframe::f64_column_to_vec(&ohlcv, "adjclose") {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn get column adjclose! {:?}", error);
+                tracing::error!("Unable to turn get column adjclose! {:?}", error);
                 continue;
             }
         };
@@ -646,7 +646,7 @@ pub fn run_analysis_on_updated_dataframe(
                 .show()
             {
                 Ok(_h) => {},
-                Err(e) => log::error!("Failed to notify the desktop user: {}", e),
+                Err(e) => tracing::error!("Failed to notify the desktop user: {}", e),
             }
         }
     }
@@ -679,14 +679,14 @@ pub fn run_analysis_on_historical_data(
                 match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&df) {
                     Ok(tv) => vt.push(tv),
                     Err(error) => {
-                        log::error!("Unable to turn get column timestamp! {:?}", error);
+                        tracing::error!("Unable to turn get column timestamp! {:?}", error);
                         continue;
                     }
                 };
                 match api::data::sql::to_dataframe::f64_column_to_vec(&df, "adjclose") {
                     Ok(av) => vv.push(av),
                     Err(error) => {
-                        log::error!("Unable to turn get column adjclose! {:?}", error);
+                        tracing::error!("Unable to turn get column adjclose! {:?}", error);
                         continue;
                     }
                 };
@@ -696,14 +696,14 @@ pub fn run_analysis_on_historical_data(
                         match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&dftmp) {
                             Ok(tv) => vt.push(tv),
                             Err(error) => {
-                                log::error!("Unable to turn get column timestamp! {:?}", error);
+                                tracing::error!("Unable to turn get column timestamp! {:?}", error);
                                 continue;
                             }
                         };
                         match api::data::sql::to_dataframe::f64_column_to_vec(&dftmp, "adjclose") {
                             Ok(av) => vv.push(av),
                             Err(error) => {
-                                log::error!("Unable to turn get column adjclose! {:?}", error);
+                                tracing::error!("Unable to turn get column adjclose! {:?}", error);
                                 continue;
                             }
                         };
@@ -719,31 +719,32 @@ pub fn run_analysis_on_historical_data(
 
             },
             Err(e) => {
-                log::error!("Failed to get dataframe from database for symbol {}: {}", symbol, e);
+                tracing::error!("Failed to get dataframe from database for symbol {}: {}", symbol, e);
                 continue;
             }
         };
         let timestamps = match api::data::sql::to_dataframe::i64_column_to_vec(&ohlcv, "timestamp") {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn get column timestamp! {:?}", error);
+                tracing::error!("Unable to turn get column timestamp! {:?}", error);
                 continue;
             }
         };
         let _datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 continue;
             }
         };
         let adjclose = match api::data::sql::to_dataframe::f64_column_to_vec(&ohlcv, "adjclose") {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn get column adjclose! {:?}", error);
+                tracing::error!("Unable to turn get column adjclose! {:?}", error);
                 continue;
             }
         };
+        /*
         // start with a series split per business day
         let _clusters = api::analytics::detectors::cluster_seasonal_data(api::analytics::detectors::vecs_to_slices(&vv));
 
@@ -762,10 +763,38 @@ pub fn run_analysis_on_historical_data(
         for _changepoint in changepoints {
             // analyze changepoints
         }
+        */
+        let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 4.0, 4.0);
+        if jumps.len() > 0 {
+            api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
+        }
+        // max one day of seasonality
+        // for each season look for changepoints
+        // and before that point analyze for increasing or decreasing slope
+        let seasonality = api::analytics::detectors::seasonality(&adjclose, 10, 960, 0.2, false);
+        for season_length in seasonality {
+            //tracing::warn!("checking seasonality for symbol {} every {} minutes.", symbol, season_length);
+            let s = api::analytics::detectors::split_series_into_seasons(&adjclose, season_length as i64, 1);
+            let t = api::analytics::detectors::split_series_into_seasons(&timestamps, season_length as i64, 1);
+            for i in 0..s.len() {
+                let (local_min, local_max) = api::analytics::detectors::local_min_max(&s[i]);
+                for j in 0..local_min.len() {
+                    let (start, end) = if local_min[j] < local_max[j] {
+                        (local_min[j], local_max[j])
+                    } else {
+                        (local_max[j], local_min[j])
+                    };
+                    let slice = s[i][start..end].iter().map(|x| x.to_owned()).collect();
+                    //tracing::warn!("checking increasing slope for slice {} of {} from {} to {}.", i, s.len(), start, end);
+                    let (slope, pos) = api::analytics::detectors::find_increasing_slope(&slice, 0.5, 0.3);
+                    if slope > 0.0 {
+                        let datetime = chrono::DateTime::from_timestamp_millis(t[i][pos]).unwrap().naive_utc();
+                        tracing::warn!("At timestamp {} the series has increasing slope of {} ", datetime.to_string(), slope);
+                    }
+                }
+            }
+        }
 
-        let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 0.5, 0.3);
-        api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
-        
     }
 }
 
@@ -908,8 +937,11 @@ mod test {
     use super::*;
     use hyper::{body::to_bytes, Request};
     use pretty_assertions::assert_eq;
+    use tracing::{info, warn, error};
+    use tracing_test::traced_test;
 
     #[tokio::test]
+    #[traced_test]
     async fn test_analysis_on_updated_frames() {
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
@@ -917,6 +949,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn test_analysis_on_historical_data() {
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
@@ -924,6 +957,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn test_charts() {
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
@@ -948,6 +982,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn test_portfolio() {
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
@@ -969,6 +1004,7 @@ mod test {
 
 
     #[tokio::test]
+    #[traced_test]
     async fn test_screener() {
         let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
         if !filepath.is_dir() {
