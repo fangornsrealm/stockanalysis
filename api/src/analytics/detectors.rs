@@ -223,8 +223,20 @@ pub fn outliers(series: Vec<&[f64]>) -> Vec<usize> {
     detector = detector.parallelize(true);
 
     // Detect outliers
-    let processed = detector.preprocess(&series).expect("input data is valid");
-    let outliers = detector.detect(&processed).expect("detection succeeds");
+    let processed = match detector.preprocess(&series) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to preprocess data series: {}", e);
+            return Vec::new();
+        }
+    };
+    let outliers = match detector.detect(&processed) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to preprocess data series: {}", e);
+            return Vec::new();
+        }
+    };
 
     debug.push(format!("Outlying series indices: {:?}", outliers.outlying_series));
     debug.push(format!("Series scores: {:?}", outliers.series_results));
@@ -255,10 +267,20 @@ pub fn is_outlier(historical_data: Vec<&[f64]>, new_data: &[f64]) -> bool {
     all_series.push(new_data);
 
     // Check for outliers
-    let processed = detector.preprocess(&all_series)
-        .expect("input data is valid");
-    let outliers = detector.detect(&processed)
-        .expect("detection succeeds");
+    let processed = match detector.preprocess(&all_series) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to preprocess data series: {}", e);
+            return false;
+        }
+    };
+    let outliers = match detector.detect(&processed) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to preprocess data series: {}", e);
+            return false;
+        }
+    };
 
     // Check if new series (last index) is an outlier
     outliers.outlying_series.contains(&(all_series.len() - 1))

@@ -4,5 +4,6 @@
 /testexample/target
 /daemon/target
 /testexample/testfiles
+/daemon/*.log
 *.html
 *.txt
