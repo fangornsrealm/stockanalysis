@@ -98,8 +98,12 @@ pub fn ohlcv_to_dataframe(
         let volume = series.iter().map(|o| o.volume).collect::<Vec<f64>>();
 
         let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
-
-        let df = df!(
+        
+        if timestamp.len() == 0 || open.len() == 0 || high.len() == 0 || low.len() == 0 || close.len() == 0 || volume.len() == 0 || adjclose.len() == 0 {
+            continue;
+        }
+        
+        let df = match df!(
             "timestamp" => &timestamp.clone(),
             "open" => &open,
             "high" => &high,
@@ -107,11 +111,17 @@ pub fn ohlcv_to_dataframe(
             "close" => &close,
             "volume" => &volume,
             "adjclose" => &adjclose
-        )?;
+        ) {
+            Ok(df) => df,
+            Err(e) => {
+                log::error!("Failed to create DataFrame from data: {}", e);
+                continue;
+            }
+        };
 
         // check if any adjclose values are 0.0
-        let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
-        let df = df.filter(&mask)?;
+        //let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
+        //let df = df.filter(&mask)?;
 
         // check if any returned dates smaller than start date or greater than end date
         let start = start_date.and_utc().timestamp_millis();
@@ -161,6 +171,9 @@ pub fn daily_ohlcv_to_dataframe(
 
         let adjclose = series.iter().map(|o| o.close).collect::<Vec<f64>>();
 
+        if timestamp.len() == 0 || open.len() == 0 || high.len() == 0 || low.len() == 0 || close.len() == 0 || volume.len() == 0 || adjclose.len() == 0 {
+            return Err("data not fit to create DataFrame".into());
+        }
         let df = df!(
             "timestamp" => &timestamp,
             "open" => &open,
