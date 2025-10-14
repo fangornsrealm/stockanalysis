@@ -109,7 +109,7 @@ pub fn run_analysis_on_updated_dataframe(
             } else {
                 text = format!("Symbol {} dropped by {} at {}!", symbol, slope, datetimes[datetimes.len()-1].to_string());
             }
-            log::warn!("{}", &text);
+            tracing::warn!("{}", &text);
             match notify_rust::Notification::new()
                 .summary("stock-analysis")
                 .body(&text)

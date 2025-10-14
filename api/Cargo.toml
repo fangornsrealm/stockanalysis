@@ -63,6 +63,7 @@ statrs = "0.18.0"
 strum = { version = "0.27.2", features = ["derive"] }
 ta = "0.5.0"
 tokio = { version = "1.47.0", features = ["full"] }
+tracing = "0.1"
 vader_sentiment = "0.1.1"
 webbrowser = "1.0.5"
 

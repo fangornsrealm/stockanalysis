@@ -32,10 +32,10 @@ pub fn live_data(
 
     //data.iter().for_each(|output| match output {
     //    Ok(data) =>  {
-    //        log::debug!("{}\n\n", data);
+    //        tracing::debug!("{}\n\n", data);
     //        let _ret = crate::sql::insert_timeseries(sql_connection.clone(), &metadata, data);
     //    },
-    //    Err(err) => log::error!("{}", err),
+    //    Err(err) => tracing::error!("{}", err),
     //});
     // the data can be enhanced with the calculation of a number of  market indicators
     let enhanced_data: Vec<EnhancedMarketSeries> = resvec
@@ -79,14 +79,14 @@ pub fn update_nightly(
             client = match client.create_endpoint() {
                 Ok(client) => client,
                 Err(error) => {
-                    log::error!("Failed to create the endpoint: {}", error);
+                    tracing::error!("Failed to create the endpoint: {}", error);
                     break;
                 }
             };
             client = match client.get_data() {
                 Ok(client) => client,
                 Err(error) => {
-                    log::error!("Failed to create the endpoint: {}", error);
+                    tracing::error!("Failed to create the endpoint: {}", error);
                     break;
                 }
             };
@@ -98,10 +98,10 @@ pub fn update_nightly(
             for res in data {
                 match res {
                     Ok(data) =>  {
-                        log::debug!("{}\n\n", data);
+                        tracing::debug!("{}\n\n", data);
                         let _ret = sql::insert_timeseries(sql_connection.clone(), &metadata, &data);
                     },
-                    Err(err) => log::error!("{}", err),
+                    Err(err) => tracing::error!("{}", err),
                 }
             }
 
@@ -130,14 +130,14 @@ pub fn update_nightly(
             client = match client.create_endpoint() {
                 Ok(client) => client,
                 Err(error) => {
-                    log::error!("Failed to create the endpoint: {}", error);
+                    tracing::error!("Failed to create the endpoint: {}", error);
                     break;
                 }
             };
             client = match client.get_data() {
                 Ok(client) => client,
                 Err(error) => {
-                    log::error!("Failed to create the endpoint: {}", error);
+                    tracing::error!("Failed to create the endpoint: {}", error);
                     break;
                 }
             };
@@ -149,10 +149,10 @@ pub fn update_nightly(
             for res in data {
                 match res {
                     Ok(data) =>  {
-                        log::debug!("{}\n\n", data);
+                        tracing::debug!("{}\n\n", data);
                         let _ret = sql::insert_timeseries(sql_connection.clone(), &metadata, &data);
                     },
-                    Err(err) => log::error!("{}", err),
+                    Err(err) => tracing::error!("{}", err),
                 }
             }
         }

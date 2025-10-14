@@ -58,7 +58,7 @@ impl TickerCharts for Ticker {
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 return Err(error);
             }
         };
@@ -94,7 +94,7 @@ impl TickerCharts for Ticker {
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 return Err(error);
             }
         };
@@ -140,7 +140,7 @@ impl TickerCharts for Ticker {
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 return Err(error);
             }
         };
@@ -261,14 +261,24 @@ impl TickerCharts for Ticker {
     }
 
     async fn candlestick_chart_live(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
-        let ohlcv = self.get_chart().await?;
+        let mut ohlcv = self.get_chart().await?;
         if ohlcv.height() < 6 {
             return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
+        if ohlcv.height() > 500 {
+            // drop enough values to limit the graphs to < 500 values
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), (ohlcv.height() / 500) as u32) {
+                Ok(df) => df,
+                Err(e) => {
+                    tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
+                    return Err(e);
+                }
+            }
         }
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 return Err(error);
             }
         };

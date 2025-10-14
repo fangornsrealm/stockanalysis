@@ -8,7 +8,7 @@ pub fn jump_events_count(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -22,23 +22,23 @@ pub fn jump_events_count(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -46,7 +46,7 @@ pub fn jump_events_count(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num
@@ -60,7 +60,7 @@ pub fn jump_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -78,7 +78,7 @@ pub fn jump_events(
                                 match row.get(0) {
                                     Ok(val) => s.datetime = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read datetime for jump_events: {}",
                                             error
                                         );
@@ -88,37 +88,37 @@ pub fn jump_events(
                                 match row.get(1) {
                                     Ok(val) => s.symbol = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for jump_events: {}", error);
+                                        tracing::error!("Failed to read open for jump_events: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.percent = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for jump_events: {}", error);
+                                        tracing::error!("Failed to read high for jump_events: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from jump_events: {}", error);
+                                tracing::error!("Failed to read a row from jump_events: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("could not read line from jump_events database: {}", err);
+                    tracing::error!("could not read line from jump_events database: {}", err);
                 }
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -136,7 +136,7 @@ pub fn insert_jump_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };
@@ -148,9 +148,9 @@ pub fn insert_jump_events(
             "INSERT INTO jump_events (timestamp, symbol, percent ) VALUES (?1, ?2, ?3)",
             params![&j.datetime, &j.symbol, &j.percent],
         ) {
-            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
-                log::error!("Failed insert jump_events! {}", error);
+                tracing::error!("Failed insert jump_events! {}", error);
                 return;
             }
         }
@@ -164,7 +164,7 @@ pub fn _delete_jump_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };
@@ -190,7 +190,7 @@ pub fn drop_events_count(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -204,23 +204,23 @@ pub fn drop_events_count(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -228,7 +228,7 @@ pub fn drop_events_count(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num
@@ -242,7 +242,7 @@ pub fn drop_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -260,7 +260,7 @@ pub fn drop_events(
                                 match row.get(0) {
                                     Ok(val) => s.datetime = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read datetime for drop_events: {}",
                                             error
                                         );
@@ -270,37 +270,37 @@ pub fn drop_events(
                                 match row.get(1) {
                                     Ok(val) => s.symbol = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for drop_events: {}", error);
+                                        tracing::error!("Failed to read open for drop_events: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.percent = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for drop_events: {}", error);
+                                        tracing::error!("Failed to read high for drop_events: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from drop_events: {}", error);
+                                tracing::error!("Failed to read a row from drop_events: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("could not read line from drop_events database: {}", err);
+                    tracing::error!("could not read line from drop_events database: {}", err);
                 }
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -318,7 +318,7 @@ pub fn insert_drop_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };
@@ -330,9 +330,9 @@ pub fn insert_drop_events(
             "INSERT INTO drop_events (timestamp, symbol, percent ) VALUES (?1, ?2, ?3)",
             params![&j.datetime, &j.symbol, &j.percent],
         ) {
-            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
-                log::error!("Failed insert drop_events! {}", error);
+                tracing::error!("Failed insert drop_events! {}", error);
                 return;
             }
         }
@@ -346,7 +346,7 @@ pub fn _delete_drop_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };
@@ -372,7 +372,7 @@ pub fn recurring_events_count(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -386,23 +386,23 @@ pub fn recurring_events_count(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -410,7 +410,7 @@ pub fn recurring_events_count(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num
@@ -424,7 +424,7 @@ pub fn recurring_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -442,7 +442,7 @@ pub fn recurring_events(
                                 match row.get(0) {
                                     Ok(val) => s.symbol = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read datetime for recurring_events: {}",
                                             error
                                         );
@@ -452,37 +452,37 @@ pub fn recurring_events(
                                 match row.get(1) {
                                     Ok(val) => s.minutes_period = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for recurring_events: {}", error);
+                                        tracing::error!("Failed to read open for recurring_events: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.time_scale = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for recurring_events: {}", error);
+                                        tracing::error!("Failed to read high for recurring_events: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from recurring_events: {}", error);
+                                tracing::error!("Failed to read a row from recurring_events: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("could not read line from recurring_events database: {}", err);
+                    tracing::error!("could not read line from recurring_events database: {}", err);
                 }
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -500,7 +500,7 @@ pub fn insert_recurring_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };
@@ -512,9 +512,9 @@ pub fn insert_recurring_events(
             "INSERT INTO recurring_events (symbol, minutes_period percent ) VALUES (?1, ?2, ?3)",
             params![&j.symbol, &j.minutes_period, &j.time_scale],
         ) {
-            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
-                log::error!("Failed insert recurring_events! {}", error);
+                tracing::error!("Failed insert recurring_events! {}", error);
                 return;
             }
         }
@@ -528,7 +528,7 @@ pub fn _delete_recurring_events(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };

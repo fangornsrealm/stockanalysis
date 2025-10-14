@@ -8,7 +8,7 @@ pub fn check_equity_exists(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return false;
         }
     };
@@ -22,23 +22,23 @@ pub fn check_equity_exists(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -46,7 +46,7 @@ pub fn check_equity_exists(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num > 0
@@ -60,7 +60,7 @@ pub fn read_equity(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return v;
         }
     };
@@ -82,7 +82,7 @@ pub fn read_equity(
                                 s.symbol = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read symbol for equities: {}", error);
+                                tracing::error!("Failed to read symbol for equities: {}", error);
                                 continue;
                             }
                         }
@@ -92,7 +92,7 @@ pub fn read_equity(
                                 s.name = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read name for equities: {}", error);
+                                tracing::error!("Failed to read name for equities: {}", error);
                                 continue;
                             }
                         }
@@ -102,7 +102,7 @@ pub fn read_equity(
                                 s.currency = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read currency for equities: {}", error);
+                                tracing::error!("Failed to read currency for equities: {}", error);
                                 continue;
                             }
                         }
@@ -112,7 +112,7 @@ pub fn read_equity(
                                 s.exchange = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read exchange for equities: {}", error);
+                                tracing::error!("Failed to read exchange for equities: {}", error);
                                 continue;
                             }
                         }
@@ -122,7 +122,7 @@ pub fn read_equity(
                                 s.mic_code = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read mic_code for equities: {}", error);
+                                tracing::error!("Failed to read mic_code for equities: {}", error);
                                 continue;
                             }
                         }
@@ -132,7 +132,7 @@ pub fn read_equity(
                                 s.r#type = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read type for equities: {}", error);
+                                tracing::error!("Failed to read type for equities: {}", error);
                                 continue;
                             }
                         }
@@ -142,7 +142,7 @@ pub fn read_equity(
                                 s.figi_code = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read figi_code for equities: {}", error);
+                                tracing::error!("Failed to read figi_code for equities: {}", error);
                                 continue;
                             }
                         }
@@ -152,7 +152,7 @@ pub fn read_equity(
                                 s.cfi_code = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read cfi_code for equities: {}", error);
+                                tracing::error!("Failed to read cfi_code for equities: {}", error);
                                 continue;
                             }
                         }
@@ -162,7 +162,7 @@ pub fn read_equity(
                                 s.isin = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read isin for equities: {}", error);
+                                tracing::error!("Failed to read isin for equities: {}", error);
                                 continue;
                             }
                         }
@@ -172,7 +172,7 @@ pub fn read_equity(
                                 s.cusip = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read cusip for equities: {}", error);
+                                tracing::error!("Failed to read cusip for equities: {}", error);
                                 continue;
                             }
                         }
@@ -182,20 +182,20 @@ pub fn read_equity(
                         break;
                     }
                     Err(error) => {
-                        log::error!("Failed to read a row from indices: {}", error);
+                        tracing::error!("Failed to read a row from indices: {}", error);
                         break;
                     }
                 }
             },
             Err(err) => {
-                log::error!(
+                tracing::error!(
                     "could not read line from videostore_indices database: {}",
                     err
                 );
             }
         },
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -210,7 +210,7 @@ pub fn match_yahoo_symbol_with_equity(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return new_symbol;
         }
     };
@@ -228,23 +228,23 @@ pub fn match_yahoo_symbol_with_equity(
                                     return new_symbol;
                                 },
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -252,7 +252,7 @@ pub fn match_yahoo_symbol_with_equity(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     // see if we can find the description of a yahoo symbol
@@ -269,23 +269,23 @@ pub fn match_yahoo_symbol_with_equity(
                                     description = val;
                                 },
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -293,7 +293,7 @@ pub fn match_yahoo_symbol_with_equity(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     if description.len() > 0 {
@@ -308,23 +308,23 @@ pub fn match_yahoo_symbol_with_equity(
                                 Ok(Some(row)) => match row.get(0) {
                                     Ok(val) => new_symbol = val,
                                     Err(error) => {
-                                        log::error!("Failed to read datetime for file: {}", error);
+                                        tracing::error!("Failed to read datetime for file: {}", error);
                                         continue;
                                     }
                                 },
                                 Ok(None) => {
-                                    //log::warn!("No data read from indices.");
+                                    //tracing::warn!("No data read from indices.");
                                     break;
                                 }
                                 Err(error) => {
-                                    log::error!("Failed to read a row from indices: {}", error);
+                                    tracing::error!("Failed to read a row from indices: {}", error);
                                     break;
                                 }
                             }
                         }
                     }
                     Err(err) => {
-                        log::error!(
+                        tracing::error!(
                             "could not read line from videostore_indices database: {}",
                             err
                         );
@@ -332,7 +332,7 @@ pub fn match_yahoo_symbol_with_equity(
                 }
             }
             Err(err) => {
-                log::error!("could not prepare SQL statement: {}", err);
+                tracing::error!("could not prepare SQL statement: {}", err);
             }
         }
     }
@@ -368,7 +368,7 @@ pub fn exchange(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return s;
         }
     };
@@ -386,7 +386,7 @@ pub fn exchange(
                                 s.title = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read title for exchanges: {}", error);
+                                tracing::error!("Failed to read title for exchanges: {}", error);
                                 continue;
                             }
                         }
@@ -396,7 +396,7 @@ pub fn exchange(
                                 s.name = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read name for exchanges: {}", error);
+                                tracing::error!("Failed to read name for exchanges: {}", error);
                                 continue;
                             }
                         }
@@ -406,7 +406,7 @@ pub fn exchange(
                                 s.code = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read code for exchanges: {}", error);
+                                tracing::error!("Failed to read code for exchanges: {}", error);
                                 continue;
                             }
                         }
@@ -416,7 +416,7 @@ pub fn exchange(
                                 s.country = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read country for exchanges: {}", error);
+                                tracing::error!("Failed to read country for exchanges: {}", error);
                                 continue;
                             }
                         }
@@ -426,7 +426,7 @@ pub fn exchange(
                                 s.timezone = st.clone();
                             }
                             Err(error) => {
-                                log::error!("Failed to read timezone for exchanges: {}", error);
+                                tracing::error!("Failed to read timezone for exchanges: {}", error);
                                 continue;
                             }
                         }
@@ -436,20 +436,20 @@ pub fn exchange(
                         break;
                     }
                     Err(error) => {
-                        log::error!("Failed to read a row from indices: {}", error);
+                        tracing::error!("Failed to read a row from indices: {}", error);
                         break;
                     }
                 }
             },
             Err(err) => {
-                log::error!(
+                tracing::error!(
                     "could not read line from videostore_indices database: {}",
                     err
                 );
             }
         },
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -464,7 +464,7 @@ pub fn check_symbol_exists(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return false;
         }
     };
@@ -478,23 +478,23 @@ pub fn check_symbol_exists(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -502,7 +502,7 @@ pub fn check_symbol_exists(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num > 0
@@ -517,7 +517,7 @@ pub fn active_symbols_count(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -531,23 +531,23 @@ pub fn active_symbols_count(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -555,7 +555,7 @@ pub fn active_symbols_count(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num
@@ -568,7 +568,7 @@ pub fn active_symbols(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -585,28 +585,28 @@ pub fn active_symbols(
                                     t.push(s);
                                 }
                                 Err(error) => {
-                                    log::error!("Failed to read open for live_data: {}", error);
+                                    tracing::error!("Failed to read open for live_data: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from live_data: {}", error);
+                                tracing::error!("Failed to read a row from live_data: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("could not read line from live_data database: {}", err);
+                    tracing::error!("could not read line from live_data database: {}", err);
                 }
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -621,7 +621,7 @@ pub fn insert_active_symbols(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 1;
         }
     };
@@ -633,9 +633,9 @@ pub fn insert_active_symbols(
             "INSERT INTO active_symbols (symbol) VALUES (?1)",
             params![&symbols[i]],
         ) {
-            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
-                log::error!("Failed insert active_symbols! {}", error);
+                tracing::error!("Failed insert active_symbols! {}", error);
                 return 1;
             }
         }
@@ -650,7 +650,7 @@ pub fn _delete_active_symbols(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };

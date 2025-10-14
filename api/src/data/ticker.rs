@@ -84,7 +84,7 @@ impl TickerData for Ticker {
 
                 },
                 Err(error) => {
-                    log::error!("{}", error);
+                    tracing::error!("{}", error);
                     // no entries in database or symbol not found, search yahoo instead
                     let yahoo_ohlcv = yahoo::api::get_chart(
                         &self.ticker, 
@@ -139,7 +139,7 @@ impl TickerData for Ticker {
                     }
                 },
                 Err(error) => {
-                    log::error!("{}", error);
+                    tracing::error!("{}", error);
                     // no entries in database or symbol not found, search yahoo instead
                     let yahoo_ohlcv = yahoo::api::get_chart(
                         &self.ticker, 

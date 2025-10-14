@@ -6,7 +6,7 @@ use eyre::{bail, Error as EyreError, Result as EyreResult, WrapErr as _};
 use std::{process::id as pid, thread::available_parallelism};
 use structopt::StructOpt;
 use tracing::{info, Level, Subscriber};
-use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, Layer, Registry};
+use tracing_subscriber::{filter::{self, Targets}, fmt, layer::SubscriberExt, Layer, Registry};
 use users::{get_current_gid, get_current_uid};
 
 #[derive(Debug, PartialEq)]
@@ -85,15 +85,33 @@ impl Options {
                 .parse()
                 .wrap_err("Error parsing log-filter")?
         };
-        let targets = log_filter.with_targets(verbosity);
+        //let targets = log_filter.with_targets(verbosity);
+
+        let log_dir = "./";
+        let log_basename = "stockanalysis-daemon.log";
+        let file_appender = tracing_appender::rolling::never(log_dir, log_basename);
+        let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
+        let file_layer_format = tracing_subscriber::fmt::format()
+            .json();
+        let file_layer = fmt::Layer::default()
+            .event_format(file_layer_format)
+            .with_writer(file_writer)
+            .json();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(file_layer)
+            .with(stdout_layer);
 
         // Support server for tokio-console
-        let console_layer = tokio_console::layer(&self.tokio_console);
+        //let console_layer = tokio_console::layer(&self.tokio_console);
 
         // Route events to both tokio-console and stdout
-        let subscriber = Registry::default()
-            .with(console_layer)
-            .with(self.log_format.to_layer().with_filter(targets));
+        //let subscriber = Registry::default()
+        //  .with(console_layer)
+        //  .with(self.log_format.to_layer().with_filter(targets));
         tracing::subscriber::set_global_default(subscriber)?;
 
         // Log version information

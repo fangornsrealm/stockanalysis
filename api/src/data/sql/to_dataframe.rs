@@ -77,6 +77,7 @@ pub fn ohlcv_to_dataframe(
     let mut v = Vec::new();
     let exchange_code = "XFRA";
     let mut metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
+    tracing::warn!("Getting data for symbol {} and from {} to {}.", stock_symbol, start_date.to_string(), end_date.to_string());
     metadata.start_date = start_date.clone().and_utc();
     metadata.end_date = end_date.clone().and_utc();
     let serieses = super::live_data::live_data(sql_connection.clone(), &metadata);
@@ -114,11 +115,12 @@ pub fn ohlcv_to_dataframe(
         ) {
             Ok(df) => df,
             Err(e) => {
-                log::error!("Failed to create DataFrame from data: {}", e);
+                tracing::error!("Failed to create DataFrame from data: {}", e);
                 continue;
             }
         };
 
+        tracing::warn!("Retrieved {} lines of data.", df.height());
         // check if any adjclose values are 0.0
         //let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
         //let df = df.filter(&mask)?;
@@ -139,6 +141,53 @@ pub fn ohlcv_to_dataframe(
     }
     Ok(v)
 }
+
+pub fn smooth_ohlcv(ohlcv: DataFrame, num_elements_to_average: u32) -> Result<DataFrame, Box<dyn Error>> {
+    let timestamp: Vec<i64> = ohlcv.column("datetime")?.i64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<i64>>();
+    let open = ohlcv.column("open")?.f64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+    let high = ohlcv.column("high")?.f64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+    let low = ohlcv.column("low")?.f64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+    let close = ohlcv.column("close")?.f64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+    let volume = ohlcv.column("volume")?.f64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+    let adjclose = ohlcv.column("adjclose")?.f64()?.to_vec()
+        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+
+    if num_elements_to_average == 1 {
+        return Ok(ohlcv);
+    }
+    let timestamp = crate::analytics::detectors::reduce_timestamps(&timestamp, num_elements_to_average);
+    let open = crate::analytics::detectors::smooth_series(&open, num_elements_to_average);
+    let high = crate::analytics::detectors::smooth_series(&high, num_elements_to_average);
+    let low = crate::analytics::detectors::smooth_series(&low, num_elements_to_average);
+    let close = crate::analytics::detectors::smooth_series(&close, num_elements_to_average);
+    let volume = crate::analytics::detectors::smooth_series(&volume, num_elements_to_average);
+    let adjclose = crate::analytics::detectors::smooth_series(&adjclose, num_elements_to_average);
+
+    let df = match df!(
+        "timestamp" => &timestamp.clone(),
+        "open" => &open,
+        "high" => &high,
+        "low" => &low,
+        "close" => &close,
+        "volume" => &volume,
+        "adjclose" => &adjclose
+    ) {
+        Ok(df) => df,
+        Err(e) => {
+            tracing::error!("Failed to create DataFrame from data: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+    Ok(df)
+}
+
+
 
 /// Returns the Ticker OHLCV Data from the database for a given time range
 pub fn daily_ohlcv_to_dataframe(

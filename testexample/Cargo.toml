@@ -16,6 +16,7 @@ log = "0.4"
 polars = { version = "0.49.1", default-features = false, features = ["lazy", "dtype-datetime", "rows", "fmt_no_tty", "json", "is_in"] }
 simplelog = { version = "0.12.2", features = ["paris"] }
 tokio = { version = "1.47.0", features = ["full"] }
+tracing = "0.1"
 
 serde = { version = "1.0.219", features = ["derive"] }
 regex = "1.11.1"

@@ -278,7 +278,7 @@ pub fn seasonality(series: &Vec<f64>, min_period: u32, max_period: u32, threshol
     periods
 }
 
-// generate a new series where every five entries will be averaged
+// generate a new series where every N entries will be averaged
 pub fn smooth_series(series: &Vec<f64>, num_elements_to_average: u32) -> Vec<f64> {
     let mut data;
     let mut average= 0.0;
@@ -295,6 +295,21 @@ pub fn smooth_series(series: &Vec<f64>, num_elements_to_average: u32) -> Vec<f64
     }
     if num_elements > 0 {
         data.push(average / num_elements as f64);
+    }
+    data
+}
+
+// generate a new series where every N entries will be contained
+pub fn reduce_timestamps(series: &Vec<i64>, num_elements_to_average: u32) -> Vec<i64> {
+    let mut data;
+    let mut num_elements = 0;
+    data = Vec::new();
+    for i in 0..data.len() {
+        num_elements += 1;
+        if num_elements % num_elements_to_average == 0 {
+            data.push(series[i]);
+            num_elements = 0;
+        }
     }
     data
 }
@@ -328,14 +343,14 @@ pub fn outliers(series: Vec<&[f64]>) -> Vec<usize> {
     let processed = match detector.preprocess(&series) {
         Ok(p) => p,
         Err(e) => {
-            log::error!("Failed to preprocess data series: {}", e);
+            tracing::error!("Failed to preprocess data series: {}", e);
             return Vec::new();
         }
     };
     let outliers = match detector.detect(&processed) {
         Ok(p) => p,
         Err(e) => {
-            log::error!("Failed to preprocess data series: {}", e);
+            tracing::error!("Failed to preprocess data series: {}", e);
             return Vec::new();
         }
     };
@@ -372,14 +387,14 @@ pub fn is_outlier(historical_data: Vec<&[f64]>, new_data: &[f64]) -> bool {
     let processed = match detector.preprocess(&all_series) {
         Ok(p) => p,
         Err(e) => {
-            log::error!("Failed to preprocess data series: {}", e);
+            tracing::error!("Failed to preprocess data series: {}", e);
             return false;
         }
     };
     let outliers = match detector.detect(&processed) {
         Ok(p) => p,
         Err(e) => {
-            log::error!("Failed to preprocess data series: {}", e);
+            tracing::error!("Failed to preprocess data series: {}", e);
             return false;
         }
     };

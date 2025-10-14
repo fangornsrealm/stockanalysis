@@ -88,7 +88,7 @@ pub fn update_dataframe(
     let enhanced_data: Vec<EnhancedMarketSeries> = match live_data(&stock_symbol, start_time, end_time) {
         Ok(res) => res,
         Err(error) => {
-            log::error!("Failed to update timeseries data for {}: {}", stock_symbol, error);
+            tracing::error!("Failed to update timeseries data for {}: {}", stock_symbol, error);
             std::process::exit(1)
         }
     };
@@ -146,7 +146,7 @@ pub fn update_dataframe(
     let df3 = match df.vstack(&df2) {
         Ok(res) => res,
         Err(error) => {
-            log::error!("Failed to append new data to the existing dataframe for {}: {}", stock_symbol, error);
+            tracing::error!("Failed to append new data to the existing dataframe for {}: {}", stock_symbol, error);
             std::process::exit(1)
         }
     };

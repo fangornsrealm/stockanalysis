@@ -79,7 +79,7 @@ impl PerformanceStats {
         }
 
         if returns.len() != benchmark_returns.len() {
-            log::error!("Uneven series with {} and {} elements!", returns.len(), benchmark_returns.len())
+            tracing::error!("Uneven series with {} and {} elements!", returns.len(), benchmark_returns.len())
         }
         let annual_days = 365.0/interval.average;
         let risk_free_rate = risk_free_rate * 100.0;

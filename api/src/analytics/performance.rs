@@ -173,7 +173,7 @@ impl PortfolioPerformanceStats {
         let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(benchmark_returns_timestamp.clone()) {
             Ok(df) => df,
             Err(error) => {
-                log::error!("Unable to turn timestamps into dates! {:?}", error);
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 return Err(error);
             }
         };*/

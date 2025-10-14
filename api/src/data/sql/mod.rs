@@ -208,7 +208,7 @@ pub fn metadata(
             m.r#type = equity_list[0].r#type.clone();
             m.exchange_code = equity_list[0].mic_code.clone();
         } else {
-            log::error!("Failed to find stock symbol {}!", m.symbol);
+            tracing::error!("Failed to find stock symbol {}!", m.symbol);
             return m;
         }
     }
@@ -298,15 +298,15 @@ fn sql_file_path() -> std::path::PathBuf {
             if !dir.exists() {
                 let ret = std::fs::create_dir_all(dir.clone());
                 if ret.is_err() {
-                    log::warn!("Failed to create directory {}", dir.display());
+                    tracing::warn!("Failed to create directory {}", dir.display());
                     dir = dirs::home_dir().unwrap();
                 }
             }
-            sqlite_file = dir.join("time_series.sqlite");
+            sqlite_file = dir.join("time_series_daemon.sqlite");
         }
         None => {
             let dir = dirs::home_dir().unwrap();
-            sqlite_file = dir.join("time_series.sqlite");
+            sqlite_file = dir.join("time_series_daemon.sqlite");
         }
     }
     if !sqlite_file.exists() {

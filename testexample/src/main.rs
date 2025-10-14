@@ -2,9 +2,9 @@
 //! Work with stock data and analyse and predict stuff
 
 use chrono::{Datelike, NaiveDateTime};
-use log::{LevelFilter};
+use tracing::{LevelFilter};
 //use polars::prelude::*;
-use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
+use simpletracing::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
 use std::error::Error;
 use std::fs::File;
 
@@ -32,7 +32,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             Ok(chart)
         },
         Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
+            tracing::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
@@ -47,7 +47,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -61,7 +61,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             Ok(chart)
         }
         Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
+            tracing::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
@@ -76,7 +76,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -89,7 +89,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
                 Ok(chart)
         }
         Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
+            tracing::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
@@ -100,7 +100,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -113,7 +113,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
                 Ok(chart)
         }
         Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
+            tracing::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
@@ -122,7 +122,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
     match returns_table {
         Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -135,7 +135,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             Ok(chart)
         }
         Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
+            tracing::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
@@ -150,7 +150,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -163,7 +163,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             Ok(chart)
         }
         Err(e) => {
-            log::error!("Failed to get portfolio: {e}");
+            tracing::error!("Failed to get portfolio: {e}");
             Err(e)
         }
     };
@@ -178,7 +178,7 @@ pub async fn test_portfolio(portfolio: Result<Portfolio, String>, filepath: &std
             std::fs::write(&osstr_to_string(path.into_os_string()), &chart.to_html()).expect("Should be able to write to file")
         },
         Err(e) => {
-            log::error!("Failed to get chart for portfolio: {e}");
+            tracing::error!("Failed to get chart for portfolio: {e}");
             return Ok(());
         }
     }
@@ -197,7 +197,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
     let start_date = match NaiveDateTime::parse_from_str("2025-03-01 00:00:00", "%Y-%m-%d %H:%M:%S") {
         Ok(dt) => dt.and_utc(),
         Err(error) => {
-            log::error!("Failed to parse fixed datetime!: {}", error);
+            tracing::error!("Failed to parse fixed datetime!: {}", error);
             std::process::exit(1);
         },
     };
@@ -238,7 +238,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 std::fs::write(&path, &html).expect("Should be able to write to file");
             },
             Err(error) => {
-                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
                 continue;
             },
         }
@@ -263,7 +263,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
         ticker.start_date = start_date.naive_utc().to_string();
         ticker.end_date = end_date.naive_utc().to_string();
         if end_date.timestamp_millis() <= start_date.timestamp_millis() {
-            log::error!("timestamps are do not span a time span!");
+            tracing::error!("timestamps are do not span a time span!");
         }
         match ticker.candlestick_chart_live(None, None).await {
             Ok(pl) => {
@@ -278,7 +278,7 @@ async fn test_ticker_data(filepath: &std::path::PathBuf) -> Result<(), Box<dyn E
                 std::fs::write(&path, &html).expect("Should be able to write to file");
             },
             Err(error) => {
-                log::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+                tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
                 continue;
             },
         }
@@ -313,7 +313,7 @@ async fn test_screeners(filepath: &std::path::PathBuf)  -> Result<(), Box<dyn Er
     match overview {
         Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
         Err(e) => {
-            log::error!("Failed to get overview for screener: {e}");
+            tracing::error!("Failed to get overview for screener: {e}");
             return Ok(());
         }
     }
@@ -324,7 +324,7 @@ async fn test_screeners(filepath: &std::path::PathBuf)  -> Result<(), Box<dyn Er
     match metrics {
         Ok(chart) => std::fs::write(&osstr_to_string(path.into_os_string()), &chart).expect("Should be able to write to file"),
         Err(e) => {
-            log::error!("Failed to get metrics for screener: {e}");
+            tracing::error!("Failed to get metrics for screener: {e}");
             return Ok(());
         }
     }

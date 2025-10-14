@@ -8,7 +8,7 @@ pub fn timeseries_count(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -22,23 +22,23 @@ pub fn timeseries_count(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -46,7 +46,7 @@ pub fn timeseries_count(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num
@@ -60,7 +60,7 @@ pub fn timeseries_all(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -78,60 +78,60 @@ pub fn timeseries_all(
                                 match row.get(0) {
                                     Ok(val) => s.datetime = val,
                                     Err(error) => {
-                                        log::error!("Failed to read datetime for file: {}", error);
+                                        tracing::error!("Failed to read datetime for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(1) {
                                     Ok(val) => s.open = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for file: {}", error);
+                                        tracing::error!("Failed to read open for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.high = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for file: {}", error);
+                                        tracing::error!("Failed to read high for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(3) {
                                     Ok(val) => s.low = val,
                                     Err(error) => {
-                                        log::error!("Failed to read low for file: {}", error);
+                                        tracing::error!("Failed to read low for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(4) {
                                     Ok(val) => s.close = val,
                                     Err(error) => {
-                                        log::error!("Failed to read close for file: {}", error);
+                                        tracing::error!("Failed to read close for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(4) {
                                     Ok(val) => s.volume = val,
                                     Err(error) => {
-                                        log::error!("Failed to read volume for file: {}", error);
+                                        tracing::error!("Failed to read volume for file: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -139,7 +139,7 @@ pub fn timeseries_all(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -154,7 +154,7 @@ pub fn timeseries(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -174,60 +174,60 @@ pub fn timeseries(
                                 match row.get(0) {
                                     Ok(val) => s.datetime = val,
                                     Err(error) => {
-                                        log::error!("Failed to read datetime for file: {}", error);
+                                        tracing::error!("Failed to read datetime for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(1) {
                                     Ok(val) => s.open = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for file: {}", error);
+                                        tracing::error!("Failed to read open for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.high = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for file: {}", error);
+                                        tracing::error!("Failed to read high for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(3) {
                                     Ok(val) => s.low = val,
                                     Err(error) => {
-                                        log::error!("Failed to read low for file: {}", error);
+                                        tracing::error!("Failed to read low for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(4) {
                                     Ok(val) => s.close = val,
                                     Err(error) => {
-                                        log::error!("Failed to read close for file: {}", error);
+                                        tracing::error!("Failed to read close for file: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(4) {
                                     Ok(val) => s.volume = val,
                                     Err(error) => {
-                                        log::error!("Failed to read volume for file: {}", error);
+                                        tracing::error!("Failed to read volume for file: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -235,7 +235,7 @@ pub fn timeseries(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -252,7 +252,7 @@ pub fn insert_timeseries(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -267,9 +267,9 @@ pub fn insert_timeseries(
             "INSERT INTO time_series (timestamp, symbol, currency, exchange, open, high, low, close, volume) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.data[i].open, &series.data[i].high, &series.data[i].low, &series.data[i].close, &series.data[i].volume ],
         ) {
-            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
-                log::error!("Failed insert time_series! {}", error);
+                tracing::error!("Failed insert time_series for symbol {}! {}", metadata.symbol, error);
                 return 0;
             }
         }
@@ -285,7 +285,7 @@ pub fn _delete_timeseries(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };

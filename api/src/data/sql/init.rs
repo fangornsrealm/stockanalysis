@@ -18,7 +18,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table active_symbols: {}", error);
+                tracing::error!("Failed to create table active_symbols: {}", error);
                 return;
             }
         }
@@ -28,7 +28,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on active_symbols: {}", error);
+                tracing::error!("Failed to create index on active_symbols: {}", error);
                 return;
             }
         }
@@ -46,7 +46,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table time_series: {}", error);
+                tracing::error!("Failed to create table time_series: {}", error);
                 return;
             }
         }
@@ -75,7 +75,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table live_data: {}", error);
+                tracing::error!("Failed to create table live_data: {}", error);
                 return;
             }
         }
@@ -85,7 +85,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on live_data: {}", error);
+                tracing::error!("Failed to create index on live_data: {}", error);
                 return;
             }
         }
@@ -95,7 +95,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on time_series: {}", error);
+                tracing::error!("Failed to create index on time_series: {}", error);
                 return;
             }
         }
@@ -119,14 +119,14 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table stocks: {}", error);
+                tracing::error!("Failed to create table stocks: {}", error);
                 return;
             }
         }
         match connection.execute("CREATE INDEX index_symbod_stocks ON stocks (symbol)", ()) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on stocks: {}", error);
+                tracing::error!("Failed to create index on stocks: {}", error);
                 return;
             }
         }
@@ -148,7 +148,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table time_series: {}", error);
+                tracing::error!("Failed to create table time_series: {}", error);
                 return;
             }
         }
@@ -158,7 +158,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on time_series: {}", error);
+                tracing::error!("Failed to create index on time_series: {}", error);
                 return;
             }
         }
@@ -168,7 +168,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on time_series: {}", error);
+                tracing::error!("Failed to create index on time_series: {}", error);
                 return;
             }
         }
@@ -183,7 +183,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table yahoosymbols: {}", error);
+                tracing::error!("Failed to create table yahoosymbols: {}", error);
                 return;
             }
         }
@@ -193,7 +193,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create index on yahoosymbols: {}", error);
+                tracing::error!("Failed to create index on yahoosymbols: {}", error);
                 return;
             }
         }
@@ -203,7 +203,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table yahoosymbols: {}", error);
+                tracing::error!("Failed to create table yahoosymbols: {}", error);
                 return;
             }
         }
@@ -213,7 +213,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table yahoosymbols: {}", error);
+                tracing::error!("Failed to create table yahoosymbols: {}", error);
                 return;
             }
         }
@@ -223,7 +223,7 @@ pub fn init_database(sqlite_file: PathBuf) {
         ) {
             Ok(_ret) => {}
             Err(error) => {
-                log::error!("Failed to create table yahoosymbols: {}", error);
+                tracing::error!("Failed to create table yahoosymbols: {}", error);
                 return;
             }
         }
@@ -236,7 +236,7 @@ pub fn init_database(sqlite_file: PathBuf) {
             ) {
                 Ok(_ret) => {}
                 Err(error) => {
-                    log::error!("Failed to create table active_symbols: {}", error);
+                    tracing::error!("Failed to create table active_symbols: {}", error);
                     return;
                 }
             }
@@ -259,14 +259,14 @@ pub fn init_database(sqlite_file: PathBuf) {
                         ) {
                             Ok(_retval) => {}
                             Err(error) => {
-                                log::error!("Failed to insert stock into database: {}", error);
+                                tracing::error!("Failed to insert stock into database: {}", error);
                                 return;
                             }
                         }
                     }
                 }
                 Err(error) => {
-                    log::error!("Failed to parse JSON from {:?}: {}", stocks_path, error);
+                    tracing::error!("Failed to parse JSON from {:?}: {}", stocks_path, error);
                 }
             }
         }
@@ -284,14 +284,14 @@ pub fn init_database(sqlite_file: PathBuf) {
                         ) {
                             Ok(_retval) => {}
                             Err(error) => {
-                                log::error!("Failed to insert exchange into database: {}", error);
+                                tracing::error!("Failed to insert exchange into database: {}", error);
                                 return;
                             }
                         }
                     }
                 }
                 Err(error) => {
-                    log::error!("Failed to parse JSON from {:?}: {}", exchanges_path, error);
+                    tracing::error!("Failed to parse JSON from {:?}: {}", exchanges_path, error);
                 }
             }
         }
@@ -308,14 +308,14 @@ pub fn init_database(sqlite_file: PathBuf) {
                         ) {
                             Ok(_retval) => {}
                             Err(error) => {
-                                log::error!("Failed to insert exchange into database: {}", error);
+                                tracing::error!("Failed to insert exchange into database: {}", error);
                                 return;
                             }
                         }
                     }
                 }
                 Err(error) => {
-                    log::error!("Failed to parse JSON from {:?}: {}", exchanges_path, error);
+                    tracing::error!("Failed to parse JSON from {:?}: {}", exchanges_path, error);
                 }
             }
         }

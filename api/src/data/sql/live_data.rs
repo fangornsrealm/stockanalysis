@@ -9,7 +9,7 @@ pub fn live_data_count(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return 0;
         }
     };
@@ -23,23 +23,23 @@ pub fn live_data_count(
                             Ok(Some(row)) => match row.get(0) {
                                 Ok(val) => num = val,
                                 Err(error) => {
-                                    log::error!("Failed to read datetime for file: {}", error);
+                                    tracing::error!("Failed to read datetime for file: {}", error);
                                     continue;
                                 }
                             },
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from indices: {}", error);
+                                tracing::error!("Failed to read a row from indices: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "could not read line from videostore_indices database: {}",
                         err
                     );
@@ -47,7 +47,7 @@ pub fn live_data_count(
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
     num
@@ -61,7 +61,7 @@ pub fn live_data_all(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -79,7 +79,7 @@ pub fn live_data_all(
                                 match row.get(0) {
                                     Ok(val) => s.datetime = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read datetime for live_data: {}",
                                             error
                                         );
@@ -89,28 +89,28 @@ pub fn live_data_all(
                                 match row.get(1) {
                                     Ok(val) => s.open = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for live_data: {}", error);
+                                        tracing::error!("Failed to read open for live_data: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.high = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for live_data: {}", error);
+                                        tracing::error!("Failed to read high for live_data: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(3) {
                                     Ok(val) => s.low = val,
                                     Err(error) => {
-                                        log::error!("Failed to read low for live_data: {}", error);
+                                        tracing::error!("Failed to read low for live_data: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(4) {
                                     Ok(val) => s.close = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read close for live_data: {}",
                                             error
                                         );
@@ -120,30 +120,30 @@ pub fn live_data_all(
                                 match row.get(5) {
                                     Ok(val) => s.volume = val,
                                     Err(error) => {
-                                        log::error!("Failed to read volume for file: {}", error);
+                                        tracing::error!("Failed to read volume for file: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from live_data: {}", error);
+                                tracing::error!("Failed to read a row from live_data: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("could not read line from live_data database: {}", err);
+                    tracing::error!("could not read line from live_data database: {}", err);
                 }
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -168,7 +168,7 @@ pub fn live_data(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return v;
         }
     };
@@ -193,7 +193,7 @@ pub fn live_data(
                                     match row.get(0) {
                                         Ok(val) => s.datetime = val,
                                         Err(error) => {
-                                            log::error!(
+                                            tracing::error!(
                                                 "Failed to read datetime for live_data: {}",
                                                 error
                                             );
@@ -203,28 +203,28 @@ pub fn live_data(
                                     match row.get(1) {
                                         Ok(val) => s.open = val,
                                         Err(error) => {
-                                            log::error!("Failed to read open for live_data: {}", error);
+                                            tracing::error!("Failed to read open for live_data: {}", error);
                                             continue;
                                         }
                                     }
                                     match row.get(2) {
                                         Ok(val) => s.high = val,
                                         Err(error) => {
-                                            log::error!("Failed to read high for live_data: {}", error);
+                                            tracing::error!("Failed to read high for live_data: {}", error);
                                             continue;
                                         }
                                     }
                                     match row.get(3) {
                                         Ok(val) => s.low = val,
                                         Err(error) => {
-                                            log::error!("Failed to read low for live_data: {}", error);
+                                            tracing::error!("Failed to read low for live_data: {}", error);
                                             continue;
                                         }
                                     }
                                     match row.get(4) {
                                         Ok(val) => s.close = val,
                                         Err(error) => {
-                                            log::error!(
+                                            tracing::error!(
                                                 "Failed to read close for live_data: {}",
                                                 error
                                             );
@@ -234,30 +234,30 @@ pub fn live_data(
                                     match row.get(5) {
                                         Ok(val) => s.volume = val,
                                         Err(error) => {
-                                            log::error!("Failed to read volume for file: {}", error);
+                                            tracing::error!("Failed to read volume for file: {}", error);
                                             continue;
                                         }
                                     }
                                     t.push(s);
                                 }
                                 Ok(None) => {
-                                    //log::warn!("No data read from indices.");
+                                    //tracing::warn!("No data read from indices.");
                                     break;
                                 }
                                 Err(error) => {
-                                    log::error!("Failed to read a row from live_data: {}", error);
+                                    tracing::error!("Failed to read a row from live_data: {}", error);
                                     break;
                                 }
                             }
                         }
                     }
                     Err(err) => {
-                        log::error!("could not read line from live_data database: {}", err);
+                        tracing::error!("could not read line from live_data database: {}", err);
                     }
                 }
             }
             Err(err) => {
-                log::error!("could not prepare SQL statement: {}", err);
+                tracing::error!("could not prepare SQL statement: {}", err);
             }
         }
         v.push(t);
@@ -274,7 +274,7 @@ pub fn all_live_data(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return t;
         }
     };
@@ -294,7 +294,7 @@ pub fn all_live_data(
                                 match row.get(0) {
                                     Ok(val) => s.datetime = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read datetime for live_data: {}",
                                             error
                                         );
@@ -304,28 +304,28 @@ pub fn all_live_data(
                                 match row.get(1) {
                                     Ok(val) => s.open = val,
                                     Err(error) => {
-                                        log::error!("Failed to read open for live_data: {}", error);
+                                        tracing::error!("Failed to read open for live_data: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(2) {
                                     Ok(val) => s.high = val,
                                     Err(error) => {
-                                        log::error!("Failed to read high for live_data: {}", error);
+                                        tracing::error!("Failed to read high for live_data: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(3) {
                                     Ok(val) => s.low = val,
                                     Err(error) => {
-                                        log::error!("Failed to read low for live_data: {}", error);
+                                        tracing::error!("Failed to read low for live_data: {}", error);
                                         continue;
                                     }
                                 }
                                 match row.get(4) {
                                     Ok(val) => s.close = val,
                                     Err(error) => {
-                                        log::error!(
+                                        tracing::error!(
                                             "Failed to read close for live_data: {}",
                                             error
                                         );
@@ -335,30 +335,30 @@ pub fn all_live_data(
                                 match row.get(5) {
                                     Ok(val) => s.volume = val,
                                     Err(error) => {
-                                        log::error!("Failed to read volume for file: {}", error);
+                                        tracing::error!("Failed to read volume for file: {}", error);
                                         continue;
                                     }
                                 }
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //log::warn!("No data read from indices.");
+                                //tracing::warn!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
-                                log::error!("Failed to read a row from live_data: {}", error);
+                                tracing::error!("Failed to read a row from live_data: {}", error);
                                 break;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("could not read line from live_data database: {}", err);
+                    tracing::error!("could not read line from live_data database: {}", err);
                 }
             }
         }
         Err(err) => {
-            log::error!("could not prepare SQL statement: {}", err);
+            tracing::error!("could not prepare SQL statement: {}", err);
         }
     }
 
@@ -376,14 +376,13 @@ pub fn insert_live_data(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return v;
         }
     };
-    let num_values = series.series.len();
-    let base_timestamp = chrono::Utc::now().timestamp();
-    for i in 0..num_values {
-        let timestamp = base_timestamp - (num_values - i) as i64 * 60;
+    let base_timestamp = chrono::Utc::now().date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(7 * 3600,0).unwrap()).and_utc().timestamp();
+    for i in 0..series.series.len() {
+        let timestamp = base_timestamp + i as i64 * 60;
         if exists.contains(&timestamp) {
             continue;
         }
@@ -432,9 +431,9 @@ pub fn insert_live_data(
             "INSERT INTO live_data (timestamp, symbol, currency, exchange, open, high, low, close, volume, sma, ema, rsi, stochastic, macd_value, signal_value, hist_value ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
         ) {
-            Ok(_retval) => {} //log::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
-                log::error!("Failed insert live_data! {}", error);
+                tracing::error!("Failed insert live_data for symbol {}! {}", metadata.symbol, error);
                 return v;
             }
         }
@@ -459,7 +458,7 @@ pub fn _delete_live_data(
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
-            log::error!("Failed to lock sql connection for use! {}", error);
+            tracing::error!("Failed to lock sql connection for use! {}", error);
             return;
         }
     };
