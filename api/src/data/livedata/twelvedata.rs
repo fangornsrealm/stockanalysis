@@ -36,6 +36,16 @@ pub fn live_data(
     client.site.intraday_series(stock_symbol, num_data, Interval::Min1)?;
     // creates the query URL & download the raw data
     client = client.create_endpoint()?.get_data()?;
+
+    // extract the metadata
+    let metadata;
+    if client.site.data.len() > 0 {
+        metadata = client.site.data[0].meta.clone();
+        tracing::info!("Extracted data for symbol {} from exchange {} {} in {}.", metadata.symbol, metadata.exchange, metadata.mic_code, metadata.currency);
+    } else {
+        return Err(format!("No metadata returned for this stock!").into())
+    }
+
     // transform into MarketSeries, that can be used for further processing
     let resvec = client.transform_data();
 
