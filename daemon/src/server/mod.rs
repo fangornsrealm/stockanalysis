@@ -13,7 +13,7 @@ use api::prelude::*;
 mod charts;
 pub use charts::run_ticker_charts;
 mod daily_data;
-pub use daily_data::run_analysis_on_historical_data;
+//pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
 //pub use live_data::{run_analysis_on_updated_dataframe, get_livedata_for_active_symbols};
 mod screener;
@@ -104,17 +104,17 @@ pub async fn run_jobs(
             Ok(()) => (),
             Err(e) => {
                 tracing::error!("Failed to create directory: {}", e);
+                filepath = dirs::home_dir().unwrap();
             },
         }
-        filepath = dirs::home_dir().unwrap();
     }
     let mut last_nightly_update = last_nightly_update_mutex.lock().unwrap();
     if now.hour() == 23 && last_nightly_update.date_naive() < now.date_naive() {
-        tracing::warn!("{} Running nightly updates.", now.naive_local().to_string());
+        tracing::debug!("{} Running nightly updates.", now.naive_local().to_string());
         // run daily jobs.
         api::data::livedata::update_nightly(sql_connection.clone(), &symbols);
-        
-        // temporarily get the minutely data also once per day until there is a subscription with live-data access
+        tracing::debug!("Done updating the database with daily data.");
+        tracing::debug!("temporarily get the minutely data also once per day until there is a subscription with live-data access");
         let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
         let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600, 0).expect("That should never fail!");
         for symbol in symbols.iter() {
@@ -127,7 +127,9 @@ pub async fn run_jobs(
             match api::data::livedata::live_data(symbol, start_date, end_date) {
                 Ok(enhanced_data) => {
                     // store the data
+                    
                     for data in enhanced_data.iter() {
+                        tracing::debug!("Retrieved {} lines of intra-day data for symbol {}.", data.series.len(), symbol);
                         let _ret = api::data::sql::insert_live_data(sql_connection.clone(), &metadata, data);
                     }
                 },
@@ -137,20 +139,21 @@ pub async fn run_jobs(
                 },
             }
         }
-        run_analysis_on_historical_data(sql_connection.clone(), &symbols);
-
-        let _ret = run_screener_process(&filepath);
-
+        //tracing::debug!("Starting analysis of historical data.");
+        //run_analysis_on_historical_data(sql_connection.clone(), &symbols);
+        tracing::debug!("Starting generation of ticker charts.");
         let _ret = run_ticker_charts(&symbols, &filepath, tickers.clone());
-
+        tracing::debug!("Starting screener process.");
+        let _ret = run_screener_process(&filepath);
+        tracing::debug!("Starting portfolio analysis.");
         let _ret = run_portfolio_analysis(&symbols, &filepath);
-    
+        tracing::debug!("stopping this process for today.");
         *last_nightly_update = now.clone();
     } else {
         // run live updates every minute on Weekdays
         if now.weekday().num_days_from_monday() < 5 {
             if now.hour() > 6 || now.hour() < 22 {
-                tracing::warn!("{} Skipping operation until there is live data.", now.naive_local().to_string());
+                tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
                 /*
                 get_livedata_for_active_symbols(sql_connection.clone(), &symbols);
 
@@ -227,7 +230,7 @@ mod test {
     async fn test_analysis_on_historical_data() {
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
-        run_analysis_on_historical_data(sql_connection.clone(), &symbols);
+        daily_data::run_analysis_on_historical_data(sql_connection.clone(), &symbols);
     }
 
     #[tokio::test]

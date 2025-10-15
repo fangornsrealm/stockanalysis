@@ -298,7 +298,7 @@ fn sql_file_path() -> std::path::PathBuf {
             if !dir.exists() {
                 let ret = std::fs::create_dir_all(dir.clone());
                 if ret.is_err() {
-                    tracing::warn!("Failed to create directory {}", dir.display());
+                    tracing::debug!("Failed to create directory {}", dir.display());
                     dir = dirs::home_dir().unwrap();
                 }
             }

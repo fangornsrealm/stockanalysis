@@ -28,7 +28,7 @@ pub fn live_data_count(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -127,7 +127,7 @@ pub fn live_data_all(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -241,7 +241,7 @@ pub fn live_data(
                                     t.push(s);
                                 }
                                 Ok(None) => {
-                                    //tracing::warn!("No data read from indices.");
+                                    //tracing::debug!("No data read from indices.");
                                     break;
                                 }
                                 Err(error) => {
@@ -342,7 +342,7 @@ pub fn all_live_data(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -431,7 +431,7 @@ pub fn insert_live_data(
             "INSERT INTO live_data (timestamp, symbol, currency, exchange, open, high, low, close, volume, sma, ema, rsi, stochastic, macd_value, signal_value, hist_value ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
         ) {
-            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 tracing::error!("Failed insert live_data for symbol {}! {}", metadata.symbol, error);
                 return v;

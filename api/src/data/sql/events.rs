@@ -27,7 +27,7 @@ pub fn jump_events_count(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -102,7 +102,7 @@ pub fn jump_events(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -148,7 +148,7 @@ pub fn insert_jump_events(
             "INSERT INTO jump_events (timestamp, symbol, percent ) VALUES (?1, ?2, ?3)",
             params![&j.datetime, &j.symbol, &j.percent],
         ) {
-            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 tracing::error!("Failed insert jump_events! {}", error);
                 return;
@@ -209,7 +209,7 @@ pub fn drop_events_count(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -284,7 +284,7 @@ pub fn drop_events(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -330,7 +330,7 @@ pub fn insert_drop_events(
             "INSERT INTO drop_events (timestamp, symbol, percent ) VALUES (?1, ?2, ?3)",
             params![&j.datetime, &j.symbol, &j.percent],
         ) {
-            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 tracing::error!("Failed insert drop_events! {}", error);
                 return;
@@ -391,7 +391,7 @@ pub fn recurring_events_count(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -466,7 +466,7 @@ pub fn recurring_events(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -512,7 +512,7 @@ pub fn insert_recurring_events(
             "INSERT INTO recurring_events (symbol, minutes_period percent ) VALUES (?1, ?2, ?3)",
             params![&j.symbol, &j.minutes_period, &j.time_scale],
         ) {
-            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 tracing::error!("Failed insert recurring_events! {}", error);
                 return;

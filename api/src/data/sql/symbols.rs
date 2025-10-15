@@ -27,7 +27,7 @@ pub fn check_equity_exists(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -233,7 +233,7 @@ pub fn match_yahoo_symbol_with_equity(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -274,7 +274,7 @@ pub fn match_yahoo_symbol_with_equity(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -313,7 +313,7 @@ pub fn match_yahoo_symbol_with_equity(
                                     }
                                 },
                                 Ok(None) => {
-                                    //tracing::warn!("No data read from indices.");
+                                    //tracing::debug!("No data read from indices.");
                                     break;
                                 }
                                 Err(error) => {
@@ -483,7 +483,7 @@ pub fn check_symbol_exists(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -536,7 +536,7 @@ pub fn active_symbols_count(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -590,7 +590,7 @@ pub fn active_symbols(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -633,7 +633,7 @@ pub fn insert_active_symbols(
             "INSERT INTO active_symbols (symbol) VALUES (?1)",
             params![&symbols[i]],
         ) {
-            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 tracing::error!("Failed insert active_symbols! {}", error);
                 return 1;

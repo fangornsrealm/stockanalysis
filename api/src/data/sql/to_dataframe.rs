@@ -77,7 +77,7 @@ pub fn ohlcv_to_dataframe(
     let mut v = Vec::new();
     let exchange_code = "XFRA";
     let mut metadata = super::metadata(sql_connection.clone(), &exchange_code, stock_symbol);
-    tracing::warn!("Getting data for symbol {} and from {} to {}.", stock_symbol, start_date.to_string(), end_date.to_string());
+    tracing::debug!("Getting data for symbol {} and from {} to {}.", stock_symbol, start_date.to_string(), end_date.to_string());
     metadata.start_date = start_date.clone().and_utc();
     metadata.end_date = end_date.clone().and_utc();
     let serieses = super::live_data::live_data(sql_connection.clone(), &metadata);
@@ -120,7 +120,7 @@ pub fn ohlcv_to_dataframe(
             }
         };
 
-        tracing::warn!("Retrieved {} lines of data.", df.height());
+        tracing::debug!("Retrieved {} lines of data.", df.height());
         // check if any adjclose values are 0.0
         //let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
         //let df = df.filter(&mask)?;

@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use chrono::{NaiveTime, offset::Local};
 
-#[allow(unreachable_code, unused_variables)]
+#[allow(unreachable_code, unused_variables, dead_code)]
 pub fn run_analysis_on_updated_dataframe(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>
@@ -109,7 +109,7 @@ pub fn run_analysis_on_updated_dataframe(
             } else {
                 text = format!("Symbol {} dropped by {} at {}!", symbol, slope, datetimes[datetimes.len()-1].to_string());
             }
-            tracing::warn!("{}", &text);
+            tracing::debug!("{}", &text);
             match notify_rust::Notification::new()
                 .summary("stock-analysis")
                 .body(&text)
@@ -123,7 +123,7 @@ pub fn run_analysis_on_updated_dataframe(
     }
 }
 
-#[allow(unreachable_code, unused_variables)]
+#[allow(unreachable_code, unused_variables, dead_code)]
 pub fn get_livedata_for_active_symbols(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>

@@ -27,7 +27,7 @@ pub fn timeseries_count(
                                 }
                             },
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -120,7 +120,7 @@ pub fn timeseries_all(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -216,7 +216,7 @@ pub fn timeseries(
                                 t.push(s);
                             }
                             Ok(None) => {
-                                //tracing::warn!("No data read from indices.");
+                                //tracing::debug!("No data read from indices.");
                                 break;
                             }
                             Err(error) => {
@@ -267,7 +267,7 @@ pub fn insert_timeseries(
             "INSERT INTO time_series (timestamp, symbol, currency, exchange, open, high, low, close, volume) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.data[i].open, &series.data[i].high, &series.data[i].low, &series.data[i].close, &series.data[i].volume ],
         ) {
-            Ok(_retval) => {} //tracing::warn!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
+            Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
                 tracing::error!("Failed insert time_series for symbol {}! {}", metadata.symbol, error);
                 return 0;

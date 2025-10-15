@@ -1,47 +1,12 @@
 #![warn(clippy::all, clippy::pedantic, clippy::cargo, clippy::nursery)]
 
 use super::tokio_console;
-use core::str::FromStr;
-use eyre::{bail, Error as EyreError, Result as EyreResult, WrapErr as _};
+use eyre::Result as EyreResult;
 use std::{process::id as pid, thread::available_parallelism};
 use structopt::StructOpt;
-use tracing::{info, Level, Subscriber};
-use tracing_subscriber::{filter::{self, Targets}, fmt, layer::SubscriberExt, Layer, Registry};
+use tracing;
+use tracing_subscriber::{filter, fmt, layer::SubscriberExt, Layer};
 use users::{get_current_gid, get_current_uid};
-
-#[derive(Debug, PartialEq)]
-enum LogFormat {
-    Compact,
-    Pretty,
-    Json,
-}
-
-impl LogFormat {
-    fn to_layer<S>(&self) -> impl Layer<S>
-    where
-        S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a> + Send + Sync,
-    {
-        match self {
-            LogFormat::Compact => Box::new(fmt::Layer::new().event_format(fmt::format().compact()))
-                as Box<dyn Layer<S> + Send + Sync>,
-            LogFormat::Pretty => Box::new(fmt::Layer::new().event_format(fmt::format().pretty())),
-            LogFormat::Json => Box::new(fmt::Layer::new().event_format(fmt::format().json())),
-        }
-    }
-}
-
-impl FromStr for LogFormat {
-    type Err = EyreError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "compact" => Self::Compact,
-            "pretty" => Self::Pretty,
-            "json" => Self::Json,
-            _ => bail!("Invalid log format: {}", s),
-        })
-    }
-}
 
 #[derive(Debug, PartialEq, StructOpt)]
 pub struct Options {
@@ -53,10 +18,6 @@ pub struct Options {
     #[structopt(long, env, default_value)]
     log_filter: String,
 
-    /// Log format, one of 'compact', 'pretty' or 'json'
-    #[structopt(long, env, default_value = "pretty")]
-    log_format: LogFormat,
-
     #[structopt(flatten)]
     pub tokio_console: tokio_console::Options,
 }
@@ -65,57 +26,26 @@ impl Options {
     #[allow(clippy::borrow_as_ptr)] // ptr::addr_of! does not work here.
     pub fn init(&self) -> EyreResult<()> {
         // Log filtering is a combination of `--log-filter` and `--verbose` arguments.
-        let verbosity = {
-            let (all, app) = match self.verbose {
-                0 => (Level::INFO, Level::INFO),
-                1 => (Level::INFO, Level::DEBUG),
-                2 => (Level::INFO, Level::TRACE),
-                3 => (Level::DEBUG, Level::TRACE),
-                _ => (Level::TRACE, Level::TRACE),
-            };
-            Targets::new()
-                .with_default(all)
-                .with_target("lib", app)
-                .with_target(env!("CARGO_CRATE_NAME"), app)
-        };
-        let log_filter = if self.log_filter.is_empty() {
-            Targets::new()
-        } else {
-            self.log_filter
-                .parse()
-                .wrap_err("Error parsing log-filter")?
-        };
         //let targets = log_filter.with_targets(verbosity);
 
-        let log_dir = "./";
-        let log_basename = "stockanalysis-daemon.log";
-        let file_appender = tracing_appender::rolling::never(log_dir, log_basename);
-        let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
-        let file_layer_format = tracing_subscriber::fmt::format()
-            .json();
-        let file_layer = fmt::Layer::default()
-            .event_format(file_layer_format)
-            .with_writer(file_writer)
-            .json();
+        let journald_layer = tracing_journald::layer()?;
         let stdout_layer = fmt::Layer::default()
             .with_writer(std::io::stdout)
             .with_ansi(false)
             .with_filter(filter::LevelFilter::INFO);
-        let subscriber = tracing_subscriber::Registry::default()
-            .with(file_layer)
-            .with(stdout_layer);
-
         // Support server for tokio-console
-        //let console_layer = tokio_console::layer(&self.tokio_console);
+        let console_layer = tokio_console::layer(&self.tokio_console);
 
         // Route events to both tokio-console and stdout
-        //let subscriber = Registry::default()
-        //  .with(console_layer)
-        //  .with(self.log_format.to_layer().with_filter(targets));
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(console_layer)
+            .with(stdout_layer);
+
         tracing::subscriber::set_global_default(subscriber)?;
 
         // Log version information
-        info!(
+        tracing::info!(
             host = env!("TARGET"),
             pid = pid(),
             uid = get_current_uid(),
@@ -146,7 +76,6 @@ pub mod test {
             Options {
                 verbose: 4,
                 log_filter: "foo".to_owned(),
-                log_format: LogFormat::Pretty,
                 tokio_console: tokio_console::Options {
                     tokio_console: false,
                 },
