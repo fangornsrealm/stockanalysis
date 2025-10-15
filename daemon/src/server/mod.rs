@@ -1,6 +1,6 @@
 
 use polars::prelude::*;
-use chrono::{Datelike, NaiveTime, offset::Local, Timelike};
+use chrono::{Datelike, offset::Local, Timelike};
 use eyre::Result as EyreResult;
 use structopt::StructOpt;
 use tokio::{
@@ -13,9 +13,9 @@ use api::prelude::*;
 mod charts;
 pub use charts::run_ticker_charts;
 mod daily_data;
-//pub use daily_data::run_analysis_on_historical_data;
+pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
-//pub use live_data::{run_analysis_on_updated_dataframe, get_livedata_for_active_symbols};
+pub use live_data::{run_analysis_on_updated_dataframe, get_livedata_for_active_symbols};
 mod screener;
 pub use screener::run_screener_process;
 mod portfolio;
@@ -88,7 +88,6 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
             return;
         },
     }
-
 }
 
 pub async fn run_jobs(
@@ -114,39 +113,28 @@ pub async fn run_jobs(
         // run daily jobs.
         api::data::livedata::update_nightly(sql_connection.clone(), &symbols);
         tracing::debug!("Done updating the database with daily data.");
-        tracing::debug!("temporarily get the minutely data also once per day until there is a subscription with live-data access");
-        let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
-        let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600, 0).expect("That should never fail!");
-        for symbol in symbols.iter() {
-            let mut metadata: api::data::sql::MetaData = api::data::sql::metadata(sql_connection.clone(), "XFRA", symbol);
-            let start_date = now.clone().date_naive().and_time(start_time);
-            let end_date = now.clone().date_naive().and_time(end_time);
-            metadata.start_date = start_date.clone().and_utc();
-            metadata.end_date = end_date.clone().and_utc();
-            
-            match api::data::livedata::live_data(symbol, start_date, end_date) {
-                Ok(enhanced_data) => {
-                    // store the data
-                    
-                    for data in enhanced_data.iter() {
-                        tracing::debug!("Retrieved {} lines of intra-day data for symbol {}.", data.series.len(), symbol);
-                        let _ret = api::data::sql::insert_live_data(sql_connection.clone(), &metadata, data);
-                    }
-                },
-                Err(e) => {
-                    tracing::error!("Failed to retrieve data for symbol {} from provider! {}", symbol, e);
-                    continue;
-                },
-            }
-        }
-        //tracing::debug!("Starting analysis of historical data.");
-        //run_analysis_on_historical_data(sql_connection.clone(), &symbols);
+        
+        tracing::debug!("For now retrieve the intra day data once a day.");
+        get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
+
         tracing::debug!("Starting generation of ticker charts.");
-        let _ret = run_ticker_charts(&symbols, &filepath, tickers.clone());
+        match run_ticker_charts(&symbols, &filepath, tickers.clone()) {
+            Ok(()) => {},
+            Err(e) => tracing::error!("Update of ticker charts failed: {}", e)
+        }
         tracing::debug!("Starting screener process.");
-        let _ret = run_screener_process(&filepath);
+        match run_screener_process(&filepath) {
+            Ok(()) => {},
+            Err(e) => tracing::error!("Screening for new stocks failed: {}", e)
+        }
         tracing::debug!("Starting portfolio analysis.");
-        let _ret = run_portfolio_analysis(&symbols, &filepath);
+        match run_portfolio_analysis(&symbols, &filepath) {
+            Ok(()) => {},
+            Err(e) => tracing::error!("Portfolio optimization failed: {}", e)
+        }
+        tracing::debug!("Starting analysis of historical data.");
+        run_analysis_on_historical_data(sql_connection.clone(), &symbols);
+
         tracing::debug!("stopping this process for today.");
         *last_nightly_update = now.clone();
     } else {
@@ -215,19 +203,60 @@ mod test {
     use hyper::{body::to_bytes, Request};
     use pretty_assertions::assert_eq;
     use tracing::{info, warn, error};
-    use tracing_test::traced_test;
+    use tracing_subscriber::{filter, fmt, layer::SubscriberExt, Layer};
+    
+    #[tokio::test]
+    async fn test_get_livedata_for_active_symbols() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_get_livedata_for_active_symbols");
+        let sql_connection = api::data::sql::connect();
+        let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
+        live_data::get_livedata_for_active_symbols(sql_connection.clone(), &symbols);
+    }
 
     #[tokio::test]
-    #[traced_test]
     async fn test_analysis_on_updated_frames() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_analysis_on_updated_frames");
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
         live_data::run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols);
     }
 
     #[tokio::test]
-    #[traced_test]
     async fn test_analysis_on_historical_data() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_analysis_on_historical_data");
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
         daily_data::run_analysis_on_historical_data(sql_connection.clone(), &symbols);
@@ -235,6 +264,18 @@ mod test {
 
     #[tokio::test]
     async fn test_charts() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_charts");
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
         let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
@@ -259,6 +300,18 @@ mod test {
 
     #[tokio::test]
     async fn test_portfolio() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_portfolio");
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
         let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
@@ -280,6 +333,18 @@ mod test {
 
     #[tokio::test]
     async fn test_screener() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_screener");
         let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
         if !filepath.is_dir() {
             match std::fs::create_dir_all(filepath.clone()) {
@@ -297,8 +362,19 @@ mod test {
     }
 
     #[tokio::test]
-    #[traced_test]
     async fn test_run_jobs() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_run_jobs");
         let sql_connection = api::data::sql::connect();
 
         let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =

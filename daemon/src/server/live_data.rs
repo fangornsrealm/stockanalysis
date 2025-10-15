@@ -6,7 +6,6 @@ pub fn run_analysis_on_updated_dataframe(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>
 ) {
-    return; // TODO disable this function until we have a live data subscription
     let now = Local::now();
     
     for symbol in symbols.iter() {
@@ -128,11 +127,10 @@ pub fn get_livedata_for_active_symbols(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
     symbols: &Vec<String>
 ) {
-    return;  // TODO disable this function until we have a live data subscription
     let nowish = Local::now();
     let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
     let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600 + 59*60, 0).expect("That should never fail!");
-    let start_date = nowish.clone().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap().and_time(start_time);
+    let start_date = nowish.clone().date_naive().and_time(start_time);
     let end_date = nowish.clone().date_naive().and_time(end_time);
     for symbol in symbols.iter() {
         let mut metadata = api::data::sql::metadata(sql_connection.clone(), "XFRA", symbol);
@@ -144,10 +142,33 @@ pub fn get_livedata_for_active_symbols(
                 let last_timestamp = livedata[0][livedata[0].len() - 1].datetime * 1000;
                 let last_timestamp = chrono::DateTime::from_timestamp_millis(last_timestamp).unwrap();
                 let nower = Local::now().naive_utc().and_utc();
-                let steps = (nower - last_timestamp).num_minutes() / 60;
-                let start_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60).unwrap();
-                let end_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60 * steps).unwrap();
-                let serieses = api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc()).unwrap();
+                let steps = (nower - last_timestamp).num_minutes();
+                let start_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60 * 1000).unwrap();
+                let end_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60 * steps * 1000).unwrap();
+                let serieses = match api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc()) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        tracing::error!("Failed to get data updated data for symbol {}: {}", symbol, e);
+                        continue;
+                    },
+                };
+                for series in serieses {
+                    api::data::sql::live_data::insert_live_data(sql_connection.clone(), &metadata, &series);
+                }
+            } else {
+                // get for the full day until now
+                let start_date = start_date.and_utc();
+                let start_time = chrono::DateTime::from_timestamp_millis(start_date.timestamp_millis() + 60 * 1000).unwrap();
+                let nower = Local::now().naive_utc().and_utc();
+                let steps = (nower - start_date).num_minutes();
+                let end_time = chrono::DateTime::from_timestamp_millis(start_date.timestamp_millis() + 60 * steps * 1000).unwrap();
+                let serieses = match api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc()) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        tracing::error!("Failed to get data updated data for symbol {}: {}", symbol, e);
+                        continue;
+                    },
+                };
                 for series in serieses {
                     api::data::sql::live_data::insert_live_data(sql_connection.clone(), &metadata, &series);
                 }
