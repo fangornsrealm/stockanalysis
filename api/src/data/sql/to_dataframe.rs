@@ -143,7 +143,7 @@ pub fn ohlcv_to_dataframe(
 }
 
 pub fn smooth_ohlcv(ohlcv: DataFrame, num_elements_to_average: u32) -> Result<DataFrame, Box<dyn Error>> {
-    let timestamp: Vec<i64> = ohlcv.column("datetime")?.i64()?.to_vec()
+    let timestamp: Vec<i64> = ohlcv.column("timestamp")?.i64()?.to_vec()
         .iter().map(|x| x.unwrap()).collect::<Vec<i64>>();
     let open = ohlcv.column("open")?.f64()?.to_vec()
         .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
