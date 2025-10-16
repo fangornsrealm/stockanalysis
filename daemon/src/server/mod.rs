@@ -74,6 +74,15 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
             },
         }
     }
+    if newpath.exists() {
+        match std::fs::remove_file(newpath) {
+            Ok(()) => (),
+            Err(e) => {
+                tracing::error!("Failed to remove file: {}", e);
+                return;
+            },
+        }
+    }
     match std::fs::hard_link(oldpath.clone(), newpath) {
         Ok(()) => (),
         Err(e) => {
