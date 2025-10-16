@@ -284,7 +284,7 @@ pub fn smooth_series(series: &Vec<f64>, num_elements_to_average: u32) -> Vec<f64
     let mut average= 0.0;
     let mut num_elements = 0;
     data = Vec::new();
-    for i in 0..data.len() {
+    for i in 0..series.len() {
         average += series[i];
         num_elements += 1;
         if num_elements % num_elements_to_average == 0 {
@@ -304,7 +304,7 @@ pub fn reduce_timestamps(series: &Vec<i64>, num_elements_to_average: u32) -> Vec
     let mut data;
     let mut num_elements = 0;
     data = Vec::new();
-    for i in 0..data.len() {
+    for i in 0..series.len() {
         num_elements += 1;
         if num_elements % num_elements_to_average == 0 {
             data.push(series[i]);
