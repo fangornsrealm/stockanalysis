@@ -17,7 +17,7 @@ pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
 pub use live_data::{run_analysis_on_updated_dataframe, get_livedata_for_active_symbols};
 mod screener;
-pub use screener::run_screener_process;
+//pub use screener::run_screener_process;
 mod portfolio;
 pub use portfolio::run_portfolio_analysis;
 
@@ -60,9 +60,20 @@ fn archive_path(filepath: &std::path::PathBuf) -> std::path::PathBuf {
 }
 
 fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::PathBuf, file: &std::path::PathBuf) {
-    let oldpath = filepath.join(file);
-    let newpath = archivepath.join(file);
+    let mut oldpath = filepath.join(file.to_path_buf());
+    let mut newpath = archivepath.join(file.to_path_buf());
+    if file.is_absolute() {
+        let file_new = match file.file_name() {
+            Some(str) => str.to_str().unwrap().to_owned(),
+            None => return,
+        };
+        oldpath = filepath.join(std::path::PathBuf::from(file_new.clone()));
+        newpath = archivepath.join(std::path::PathBuf::from(file_new));
+    }
     if !oldpath.exists() {
+        return;
+    }
+    if oldpath == newpath {
         return;
     }
     if !archivepath.is_dir() {
@@ -131,11 +142,11 @@ pub async fn run_jobs(
             Ok(()) => {},
             Err(e) => tracing::error!("Update of ticker charts failed: {}", e)
         }
-        tracing::debug!("Starting screener process.");
-        match run_screener_process(&filepath) {
-            Ok(()) => {},
-            Err(e) => tracing::error!("Screening for new stocks failed: {}", e)
-        }
+        //tracing::debug!("Starting screener process.");
+        //match run_screener_process(&filepath) {
+        //    Ok(()) => {},
+        //    Err(e) => tracing::error!("Screening for new stocks failed: {}", e)
+        //}
         tracing::debug!("Starting portfolio analysis.");
         match run_portfolio_analysis(&symbols, &filepath) {
             Ok(()) => {},
@@ -364,7 +375,7 @@ mod test {
             }
             filepath = dirs::home_dir().unwrap();
         }
-        match super::run_screener_process(&filepath) {
+        match screener::run_screener_process(&filepath) {
             Ok(()) => {},
             Err(e) => tracing::error!("screener process threw error: {}", e),
         }
