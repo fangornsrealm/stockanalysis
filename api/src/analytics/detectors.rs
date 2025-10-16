@@ -311,6 +311,9 @@ pub fn reduce_timestamps(series: &Vec<i64>, num_elements_to_average: u32) -> Vec
             num_elements = 0;
         }
     }
+    if num_elements > 0 {
+        data.push(series[series.len()-1]);
+    }
     data
 }
 
