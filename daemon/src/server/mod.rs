@@ -75,7 +75,7 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
         }
     }
     if newpath.exists() {
-        match std::fs::remove_file(newpath) {
+        match std::fs::remove_file(newpath.clone()) {
             Ok(()) => (),
             Err(e) => {
                 tracing::error!("Failed to remove file: {}", e);
