@@ -63,7 +63,7 @@ fn run_ticker_charts_livedata(
             ticker.end_date = end_date.naive_utc().to_string();
         }
         if end_date.timestamp_millis() <= start_date.timestamp_millis() {
-            tracing::error!("timestamps are do not span a time span!");
+            tracing::error!("timestamps do not span a time span!");
         }
         match candlestick_chart_live_async(&ticker) {
             Ok(pl) => {

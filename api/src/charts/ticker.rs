@@ -265,9 +265,10 @@ impl TickerCharts for Ticker {
         if ohlcv.height() < 6 {
             return Err(format!("Not enough data found for symbol {}", self.ticker).into());
         }
-        if ohlcv.height() > 500 {
-            // drop enough values to limit the graphs to < 500 values
-            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), (ohlcv.height() / 500) as u32) {
+        if ohlcv.height() > 100 {
+            // drop enough values to limit the graphs to < 100 values
+            let num_to_average = ((ohlcv.height() as f64/ 100.0) + 0.5).round();
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), num_to_average as u32) {
                 Ok(df) => df,
                 Err(e) => {
                     tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
