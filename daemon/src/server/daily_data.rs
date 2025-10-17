@@ -1,5 +1,3 @@
-use polars::prelude::*;
-
 use chrono::{NaiveTime, offset::Local};
 
 #[allow(unreachable_code, unused_variables, dead_code)]
@@ -10,57 +8,17 @@ pub fn run_analysis_on_historical_data(
     let now = Local::now();
     
     for symbol in symbols.iter() {
-        let mut vt = Vec::new();
-        let mut vv = Vec::new();
         let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
         let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600 + 59*60, 0).expect("That should never fail!");
-        let start_date = now.clone().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap().and_time(start_time);
-        let end_date = now.clone().date_naive().and_time(end_time);
-        let ohlcv: polars::prelude::DataFrame = match api::data::sql::to_dataframe::ohlcv_to_dataframe(
+        let start_date = now.clone().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap().and_time(start_time).and_utc();
+        let end_date = now.clone().date_naive().and_time(end_time).and_utc();
+        let ohlcv: polars::prelude::DataFrame = match api::data::sql::to_dataframe::daily_ohlcv_to_dataframe(
             sql_connection.clone(),
             symbol,
             start_date,
             end_date,
         ) {
-            Ok(vec) => {
-                if vec.len() == 0 {
-                    continue;
-                }
-                let mut df = vec[0].clone();
-                match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&df) {
-                    Ok(tv) => vt.push(tv),
-                    Err(error) => {
-                        tracing::error!("Unable to turn get column timestamp! {:?}", error);
-                        continue;
-                    }
-                };
-                match api::data::sql::to_dataframe::f64_column_to_vec(&df, "adjclose") {
-                    Ok(av) => vv.push(av),
-                    Err(error) => {
-                        tracing::error!("Unable to turn get column adjclose! {:?}", error);
-                        continue;
-                    }
-                };
-                if vec.len() > 1 {
-                    for i in 1..vec.len() {
-                        let dftmp = vec[i].clone();
-                        match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&dftmp) {
-                            Ok(tv) => vt.push(tv),
-                            Err(error) => {
-                                tracing::error!("Unable to turn get column timestamp! {:?}", error);
-                                continue;
-                            }
-                        };
-                        match api::data::sql::to_dataframe::f64_column_to_vec(&dftmp, "adjclose") {
-                            Ok(av) => vv.push(av),
-                            Err(error) => {
-                                tracing::error!("Unable to turn get column adjclose! {:?}", error);
-                                continue;
-                            }
-                        };
-                        df = concat([df.lazy(), vec[i].clone().lazy()], UnionArgs::default()).unwrap().collect().unwrap();
-                    }
-                }
+            Ok(df) => {
                 if df.height() > 0 {
                     df
                 } else {
