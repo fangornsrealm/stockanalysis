@@ -1,5 +1,6 @@
 use polars::prelude::*;
 use std::error::Error;
+use chrono::Timelike;
 
 use api::prelude::*;
 
@@ -25,6 +26,60 @@ fn candlestick_chart_live_async(ticker: &Ticker) -> Result<plotly::plot::Plot, B
     futures::executor::block_on(
         ticker.candlestick_chart_live(None, None)
     )
+}
+
+pub fn ticker_chart_recent_for_symbol(
+    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
+    stock_symbol: String,
+    filepath: &std::path::PathBuf,
+) {
+    let archivepath = super::archive_path(filepath);
+    let nower = chrono::Utc::now();
+    let end_datetime = nower.date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight(), 0).unwrap()).and_utc();
+    let start_datetime = nower.clone().date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight() - 120*60, 0).unwrap()).and_utc();
+    let mut ticker: Ticker;
+    let mut tickers = match tickers_mutex.lock() {
+        Ok(t) => t,
+        Err(error) => {
+            tracing::error!("Failed to lock tichers hash for use! {}", error);
+            return;
+        }
+    };
+    if !tickers.contains_key(&stock_symbol) {
+        ticker= api::models::ticker::TickerBuilder::new()
+            .ticker(&stock_symbol)
+            .start_date(&start_datetime.naive_utc().to_string())
+            .end_date(&end_datetime.naive_utc().to_string())
+            .benchmark_symbol("0H1C")
+            .interval(Interval::OneDay)
+            .build();
+        tickers.insert(stock_symbol.clone(), ticker.clone());
+    } else {
+        ticker = tickers[&stock_symbol].clone();
+        ticker.start_date = start_datetime.naive_utc().to_string();
+        ticker.end_date = end_datetime.naive_utc().to_string();
+    }
+    if end_datetime.timestamp_millis() <= start_datetime.timestamp_millis() {
+        tracing::error!("timestamps do not span a time span!");
+    }
+    match candlestick_chart_live_async(&ticker) {
+        Ok(pl) => {
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_chart_recent.jpg".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            pl.to_jpeg(&super::osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+            let html = pl.to_html();
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_chart_recent.html".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&path, &html).expect("Should be able to write to file");
+        },
+        Err(error) => {
+            tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+        },
+    }
 }
 
 fn run_ticker_charts_livedata(
