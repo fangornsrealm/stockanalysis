@@ -162,34 +162,54 @@ pub fn local_min_max(
     if series.len() < 2 {
         return (local_min, local_max);
     }
-    let smooth_5 = smooth_series(series, 5);
-    //let smooth_3 = smooth_series(series, 3);
-    let mut slope;
-    if series[1] < series[0] {
-        local_max.push(0);
-        slope = -1;
-    } else {
-        local_min.push(0);
-        slope = 1;
-    }
-    for i in 1..smooth_5.len() {
-        if smooth_5[i] < smooth_5[i - 1] && slope > 0 {
-            let start = (i-1)*5;
-            let end = i * 5;
-            for j in start..end {
-                if series[j] < series[j - 1] && slope > 0 {
-                    local_max.push(i * 5);
-                    slope = -1;
+    if series.len() > 50 { 
+        let smooth_5 = smooth_series(series, 5);
+        //let smooth_3 = smooth_series(series, 3);
+        let mut slope;
+        if series[1] < series[0] {
+            local_max.push(0);
+            slope = -1;
+        } else {
+            local_min.push(0);
+            slope = 1;
+        }
+        for i in 1..smooth_5.len() {
+            if smooth_5[i] < smooth_5[i - 1] && slope > 0 {
+                let start = (i-1)*5;
+                let end = i * 5;
+                for j in start..end {
+                    if series[j] < series[j - 1] && slope > 0 {
+                        local_max.push(j);
+                        slope = -1;
+                    }
+                }
+            } else if smooth_5[i] > smooth_5[i - 1] && slope < 0 {
+                let start = (i-1)*5;
+                let end = i * 5;
+                for j in start..end {
+                    if series[j] > series[j - 1] && slope < 0 {
+                        local_min.push(j);
+                        slope = 1;
+                    }
                 }
             }
-        } else if smooth_5[i] > smooth_5[i - 1] && slope < 0 {
-            let start = (i-1)*5;
-            let end = i * 5;
-            for j in start..end {
-                if series[j] > series[j - 1] && slope < 0 {
-                    local_min.push(i * 5);
-                    slope = 1;
-                }
+        }
+    } else {
+        let mut slope;
+        if series[1] < series[0] {
+            local_max.push(0);
+            slope = -1;
+        } else {
+            local_min.push(0);
+            slope = 1;
+        }
+        for i in 1..series.len() {
+            if series[i] < series[i - 1] && slope > 0 {
+                local_max.push(i);
+                slope = -1;
+            } else if series[i] > series[i - 1] && slope < 0 {
+                local_min.push(i);
+                slope = 1;
             }
         }
     }
