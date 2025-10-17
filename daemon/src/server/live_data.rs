@@ -1,10 +1,13 @@
 use polars::prelude::*;
 use chrono::{NaiveTime, offset::Local};
+use api::prelude::*;
 
 #[allow(unreachable_code, unused_variables, dead_code)]
 pub fn run_analysis_on_updated_dataframe(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
-    symbols: &Vec<String>
+    symbols: &Vec<String>,
+    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
+    filepath: &std::path::PathBuf,
 ) {
     let now = Local::now();
     
@@ -95,12 +98,14 @@ pub fn run_analysis_on_updated_dataframe(
             }
         };
         
-        let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 0.5, 0.3);
+        let jumps = api::analytics::detectors::jumps_in_series(symbol, &timestamps, &adjclose, 0.4, 0.4);
         api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
         
         // detect a increasing or decreasing slope and raise a notification
         let slope = api::analytics::detectors::increasing_slope(&vv[vv.len()-1], 0.5, 0.3);
         if slope != 0.0 {
+            // create a new chart with the last 120 minutes
+            super::charts::ticker_chart_recent_for_symbol(tickers_mutex.clone(), symbol.to_string(), filepath);
             // send alarm
             let text;
             if slope > 0.0 {

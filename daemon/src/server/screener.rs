@@ -50,6 +50,7 @@ fn report_portfolio(ticker: api::prelude::Portfolio, reporttype: Option<ReportTy
     )
 }
 
+#[allow(dead_code)]
 pub fn run_screener_process(filepath: &std::path::PathBuf) -> Result<(), Box<dyn Error>> {
     let archivepath = super::archive_path(filepath);
     // Screen for Large-Cap NASDAQ Stocks

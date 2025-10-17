@@ -27,7 +27,10 @@ pub fn live_data(
     }
     if end_time.date() != start_time.date() {
         // last data from yesterday
-        let start_time_today = end_time.date().and_hms_opt(7, 0, 0).unwrap();
+        let start_time_today = end_time.date()
+            .and_hms_opt(7, 0, 0).unwrap()
+            .and_local_timezone(chrono::Local).unwrap()
+            .naive_utc();
         num_data = ((end_time - start_time_today).as_seconds_f32() / 60.0).round().abs() as u32;
     }
     // check if we have data for this symbol

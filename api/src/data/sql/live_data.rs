@@ -1,3 +1,4 @@
+use chrono::Timelike;
 use rusqlite::params;
 
 /// return the number of time series data for the stock
@@ -380,7 +381,14 @@ pub fn insert_live_data(
             return v;
         }
     };
-    let base_timestamp = chrono::Utc::now().date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(7 * 3600,0).unwrap()).and_utc().timestamp();
+    // Calculate the time stamp for the first entry in the list
+    // List length depends on how many minutes were available
+    let seconds_from_midnight = chrono::Utc::now().num_seconds_from_midnight();
+    // round to the last full minute and subtract the number of entries per minute
+    let minutes_from_midnight = seconds_from_midnight / 60;
+    let seconds_from_midnight_normalized = (minutes_from_midnight - series.series.len() as u32) * 60;
+    let time = chrono::NaiveTime::from_num_seconds_from_midnight_opt(seconds_from_midnight_normalized, 0).unwrap();
+    let base_timestamp = chrono::Utc::now().date_naive().and_time(time).and_utc().timestamp();
     for i in 0..series.series.len() {
         let timestamp = base_timestamp + i as i64 * 60;
         if exists.contains(&timestamp) {

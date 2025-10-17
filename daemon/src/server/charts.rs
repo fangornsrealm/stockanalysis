@@ -28,6 +28,7 @@ fn candlestick_chart_live_async(ticker: &Ticker) -> Result<plotly::plot::Plot, B
     )
 }
 
+/// For a single symbol create a hard and HTML file for the last 120 minutes
 pub fn ticker_chart_recent_for_symbol(
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
     stock_symbol: String,
@@ -82,7 +83,8 @@ pub fn ticker_chart_recent_for_symbol(
     }
 }
 
-fn run_ticker_charts_livedata(
+/// Create charts and HTML files for minutely data for the last day
+pub fn run_ticker_charts_livedata(
     symbolsstrings: &Vec<String>,
     filepath: &std::path::PathBuf,
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
@@ -143,6 +145,7 @@ fn run_ticker_charts_livedata(
     Ok(())
 }
 
+/// Create images and HTML charts for daily data
 pub fn run_ticker_charts(
     symbolsstrings: &Vec<String>,
     filepath: &std::path::PathBuf,
@@ -208,6 +211,5 @@ pub fn run_ticker_charts(
             },
         }
     }
-    run_ticker_charts_livedata(symbolsstrings, filepath, tickers_mutex)?;
     Ok(())
 }

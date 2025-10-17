@@ -11,7 +11,7 @@ use tokio::{
 use api::prelude::*;
 
 mod charts;
-pub use charts::run_ticker_charts;
+pub use charts::{run_ticker_charts, run_ticker_charts_livedata};
 mod daily_data;
 pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
@@ -111,11 +111,15 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
 }
 
 pub async fn run_jobs(
-    tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>, 
+    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>, 
     sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
     last_nightly_update_mutex: Arc<std::sync::Mutex<chrono::DateTime<Local>>>,
 ) -> EyreResult<()> {
     let now = Local::now();
+    if now.weekday().num_days_from_monday() > 4 {
+        tracing::debug!("{} Only work on weekdays.", now.naive_local().to_string());
+        return Ok(());
+    }
     let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
     let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
     if !filepath.is_dir() {
@@ -127,18 +131,30 @@ pub async fn run_jobs(
             },
         }
     }
-    let mut last_nightly_update = last_nightly_update_mutex.lock().unwrap();
+    let mut last_nightly_update = match last_nightly_update_mutex.lock() {
+        Ok(mutex) => mutex,
+        Err(e) => {
+            tracing::error!("Failed to lock the mutex on last nighthly update: {}", e);
+            return Ok(());
+        }
+    };
+    // Monday to Friday at 23:00 run nightly updates, but only once per day.
     if now.hour() == 23 && last_nightly_update.date_naive() < now.date_naive() {
         tracing::debug!("{} Running nightly updates.", now.naive_local().to_string());
+        *last_nightly_update = now.clone();
+        std::mem::drop(last_nightly_update);
+        tracing::debug!("This update job is marked as done for today.");
+
         // run daily jobs.
         api::data::livedata::update_nightly(sql_connection.clone(), &symbols);
         tracing::debug!("Done updating the database with daily data.");
         
-        tracing::debug!("For now retrieve the intra day data once a day.");
-        get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
+        //tracing::debug!("For now retrieve the intra day data once a day.");
+        //get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
+        //run_ticker_charts_livedata(symbolsstrings, filepath, tickers_mutex)?;
 
         tracing::debug!("Starting generation of ticker charts.");
-        match run_ticker_charts(&symbols, &filepath, tickers.clone()) {
+        match run_ticker_charts(&symbols, &filepath, tickers_mutex.clone()) {
             Ok(()) => {},
             Err(e) => tracing::error!("Update of ticker charts failed: {}", e)
         }
@@ -154,37 +170,18 @@ pub async fn run_jobs(
         }
         tracing::debug!("Starting analysis of historical data.");
         run_analysis_on_historical_data(sql_connection.clone(), &symbols);
-
-        tracing::debug!("stopping this process for today.");
-        *last_nightly_update = now.clone();
     } else {
         // run live updates every minute on Weekdays
-        if now.weekday().num_days_from_monday() < 5 {
-            if now.hour() > 6 || now.hour() < 22 {
-                tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
-                /*
-                get_livedata_for_active_symbols(sql_connection.clone(), &symbols);
-
-                // create recent charts for active stock symbols
-                let mut live_filepath = filepath.clone().join("live_charts");
-                if !live_filepath.is_dir() {
-                    match std::fs::create_dir_all(live_filepath.clone()) {
-                        Ok(()) => (),
-                        Err(e) => {
-                            tracing::error!("Failed to create directory: {}", e);
-                        },
-                    }
-                    live_filepath = dirs::home_dir().unwrap();
-                }
-
-                let _ret = run_ticker_charts_livedata(&symbols, &live_filepath, tickers.clone());
-
-                // triger the live analysis and event detection
-                run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols);
-                */
-
-                
-            }
+        if now.hour() > 6 || now.hour() < 23 {
+            //tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
+            tracing::debug!("Retrieve the intra day data for all active symbols.");
+            get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
+            
+            tracing::debug!("Create all live data charts for all active symbols.");
+            let _ret = run_ticker_charts_livedata(&symbols, &filepath, tickers_mutex.clone());
+            
+            tracing::debug!("Run live analysis on updated data.");
+            run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols, tickers_mutex.clone(), &filepath);
         }
     }
 
@@ -203,7 +200,7 @@ pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreRes
                 chrono::DateTime::from_timestamp(24 * 3600 * 100,0).unwrap().naive_local().and_local_timezone(chrono::Local).unwrap()
             ));
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60));
+        let mut interval = time::interval(Duration::from_secs(300)); // update of data takes over four minutes, so we cannot get faster than every five minutes
         loop {
             interval.tick().await; // This should go first.
             tokio::spawn(run_jobs(tickers.clone(), sql_connection.clone(), last_nightly_update.clone()));
@@ -258,9 +255,14 @@ mod test {
 
         tracing::subscriber::set_global_default(subscriber).unwrap();
         tracing::info!("test_analysis_on_updated_frames");
+        let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =
+                std::sync::Arc::new(std::sync::Mutex::new(
+                    std::collections::HashMap::new()
+                ));
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
-        live_data::run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols);
+        let filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        live_data::run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols, tickers.clone(), &filepath);
     }
 
     #[tokio::test]
