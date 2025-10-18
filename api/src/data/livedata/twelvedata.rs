@@ -45,6 +45,7 @@ pub fn live_data(
     if client.site.data.len() > 0 {
         let md = crate::data::sql::MetaData {
             symbol: client.site.data[0].meta.symbol.to_string(),
+            name: String::new(),
             currency: client.site.data[0].meta.currency.to_string(),
             exchange_timezone: client.site.data[0].meta.exchange_timezone.to_string(),
             exchange: client.site.data[0].meta.exchange.to_string(),

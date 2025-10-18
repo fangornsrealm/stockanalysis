@@ -366,6 +366,162 @@ pub fn all_live_data(
     t
 }
 
+pub fn get_stock_metadata(
+    sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    symbol: &str,
+) -> crate::data::sql::MetaData {
+    let mut metadata = crate::data::sql::MetaData {..Default::default()};
+    let connection = match sql_connection.lock() {
+        Ok(conn) => conn,
+        Err(error) => {
+            tracing::error!("Failed to lock sql connection for use! {}", error);
+            return metadata;
+        }
+    };
+    // get the latest entry for this symbol
+    let query = "SELECT currency, exchange FROM live_data WHERE symbol = ?1 ORDER BY timestamp_id DESC LIMIT 1";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![symbol]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => {
+                                match row.get(0) {
+                                    Ok(val) => metadata.currency = val,
+                                    Err(error) => {
+                                        tracing::error!(
+                                            "Failed to read currency for live_data: {}",
+                                            error
+                                        );
+                                        continue;
+                                    }
+                                }
+                                match row.get(1) {
+                                    Ok(val) => metadata.exchange = val,
+                                    Err(error) => {
+                                        tracing::error!("Failed to read exchange for live_data: {}", error);
+                                        continue;
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                //tracing::debug!("No data read from indices.");
+                                return metadata;
+                            }
+                            Err(error) => {
+                                tracing::error!("Failed to read a row from live_data: {}", error);
+                                return metadata;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    tracing::error!("could not read line from live_data database: {}", err);
+                }
+            }
+        }
+        Err(err) => {
+            tracing::error!("could not prepare SQL statement: {}", err);
+        }
+    }
+    // get the stock details for this symbol
+    let query = "SELECT name, mic_code FROM stocks WHERE symbol = ?1 AND exchange = ?2 AND currency = ?3";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![symbol, &metadata.exchange, &metadata.currency]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => {
+                                match row.get(0) {
+                                    Ok(val) => metadata.name = val,
+                                    Err(error) => {
+                                        tracing::error!(
+                                            "Failed to read name for stocks: {}",
+                                            error
+                                        );
+                                        continue;
+                                    }
+                                }
+                                match row.get(1) {
+                                    Ok(val) => metadata.exchange_code = val,
+                                    Err(error) => {
+                                        tracing::error!("Failed to read mic_code for stocks: {}", error);
+                                        continue;
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                //tracing::debug!("No data read from indices.");
+                                return metadata;
+                            }
+                            Err(error) => {
+                                tracing::error!("Failed to read a row from stocks: {}", error);
+                                return metadata;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    tracing::error!("could not read line from stocks database: {}", err);
+                }
+            }
+        }
+        Err(err) => {
+            tracing::error!("could not prepare SQL statement: {}", err);
+        }
+    }
+    // get the exchange details for this symbol
+    let query = "SELECT code, timezome FROM exchanges WHERE name = ?1";
+    match connection.prepare(query) {
+        Ok(mut statement) => {
+            match statement.query(params![&metadata.exchange]) {
+                Ok(mut rows) => {
+                    loop {
+                        match rows.next() {
+                            Ok(Some(row)) => {
+                                match row.get(0) {
+                                    Ok(val) => metadata.exchange_code = val,
+                                    Err(error) => {
+                                        tracing::error!(
+                                            "Failed to read code for exchanges: {}",
+                                            error
+                                        );
+                                        continue;
+                                    }
+                                }
+                                match row.get(1) {
+                                    Ok(val) => metadata.exchange_timezone = val,
+                                    Err(error) => {
+                                        tracing::error!("Failed to read timezone for exchanges: {}", error);
+                                        continue;
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                //tracing::debug!("No data read from indices.");
+                                return metadata;
+                            }
+                            Err(error) => {
+                                tracing::error!("Failed to read a row from exchanges: {}", error);
+                                return metadata;
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    tracing::error!("could not read line from exchanges database: {}", err);
+                }
+            }
+        }
+        Err(err) => {
+            tracing::error!("could not prepare SQL statement: {}", err);
+        }
+    }
+    metadata
+}
+
 pub fn insert_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,

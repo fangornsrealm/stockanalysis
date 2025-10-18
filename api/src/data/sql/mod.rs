@@ -21,6 +21,7 @@ pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe, i64_column_
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MetaData {
     pub symbol: String,
+    pub name: String,
     #[allow(dead_code)]
     pub currency: String,
     #[allow(dead_code)]
@@ -39,6 +40,7 @@ impl Default for MetaData {
     fn default() -> MetaData {
         MetaData {
             symbol: String::new(),
+            name: String::new(),
             currency: String::new(),
             exchange_timezone: String::new(),
             exchange: String::new(),
@@ -175,6 +177,9 @@ pub fn metadata(
     let equity_list = symbols::equity(sql_connection.clone(), stock_symbol);
     let mut desired_found = false;
     for e in equity_list.iter() {
+        if m.name.len() == 0 {
+            m.name = e.name.clone();
+        }
         if e.mic_code == exchange_code {
             desired_found = true;
         }
