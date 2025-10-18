@@ -18,10 +18,11 @@ pub fn live_data(
     symbol: &str,
     start_time: NaiveDateTime,
     end_time: NaiveDateTime,
+    metadata: &mut crate::data::sql::MetaData,
 )  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
 
     match var("Twelvedata_TOKEN") {
-        Ok(_val) => twelvedata::live_data(symbol, start_time, end_time),
+        Ok(_val) => twelvedata::live_data(symbol, start_time, end_time, metadata),
         Err(_e) => match var("AlphaVantage_TOKEN") {
             Ok(_val) => alphavantage::live_data(symbol, start_time, end_time),
             Err(_e) => match var("Polygon_APIKey") {
@@ -80,12 +81,13 @@ pub fn marketdata_to_timeseries(
 pub fn update_dataframe(
     df: &DataFrame,
     stock_symbol: &str, 
+    metadata: &mut crate::data::sql::MetaData,
 ) -> Result<DataFrame, Box<dyn Error>> {
     let col_val = df.column("timestamp")?.i64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<i64>>();
     let start_timestamp = col_val[col_val.len()-1];
     let start_time = chrono::DateTime::from_timestamp_millis(start_timestamp).unwrap().naive_utc();
     let end_time = chrono::Utc::now().naive_utc();
-    let enhanced_data: Vec<EnhancedMarketSeries> = match live_data(&stock_symbol, start_time, end_time) {
+    let enhanced_data: Vec<EnhancedMarketSeries> = match live_data(&stock_symbol, start_time, end_time, metadata) {
         Ok(res) => res,
         Err(error) => {
             tracing::error!("Failed to update timeseries data for {}: {}", stock_symbol, error);

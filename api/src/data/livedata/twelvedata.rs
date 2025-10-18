@@ -16,6 +16,7 @@ pub fn live_data(
     symbol: &str,
     start_time: chrono::NaiveDateTime,
     end_time: chrono::NaiveDateTime,
+    metadata: &mut crate::data::sql::MetaData,
 )  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
     let site: Twelvedata = Twelvedata::new(TOKEN.to_string());
     // create the MarketClient
@@ -41,17 +42,26 @@ pub fn live_data(
     client = client.create_endpoint()?.get_data()?;
 
     // extract the metadata
-    let metadata;
     if client.site.data.len() > 0 {
-        metadata = client.site.data[0].meta.clone();
-        tracing::info!("Extracted data for symbol {} from exchange {} {} in {}.", metadata.symbol, metadata.exchange, metadata.mic_code, metadata.currency);
+        let md = crate::data::sql::MetaData {
+            symbol: client.site.data[0].meta.symbol.to_string(),
+            currency: client.site.data[0].meta.currency.to_string(),
+            exchange_timezone: client.site.data[0].meta.exchange_timezone.to_string(),
+            exchange: client.site.data[0].meta.exchange.to_string(),
+            exchange_code: client.site.data[0].meta.mic_code.to_string(),
+            r#type: client.site.data[0].meta.r#type.to_string(),
+            start_date: metadata.start_date.clone(),
+            end_date: metadata.end_date.clone(),
+        };
+        *metadata = md;
+        tracing::info!("Extracted data for symbol {} from exchange {} {} in {}.", metadata.symbol, metadata.exchange, metadata.exchange_code, metadata.currency);
     } else {
-        return Err(format!("No metadata returned for this stock!").into())
+        tracing::error!("No metadata returned for symbol {}!", symbol);
+        return Err(format!("No metadata returned for symnbol {}!", symbol).into())
     }
-
     // transform into MarketSeries, that can be used for further processing
     let resvec = client.transform_data();
-
+    
     //data.iter().for_each(|output| match output {
     //    Ok(data) =>  {
     //        tracing::debug!("{}\n\n", data);
@@ -66,11 +76,11 @@ pub fn live_data(
         .map(|series| {
             series
                 .enhance_data()
-                .with_sma(10)
-                .with_ema(20)
-                .with_ema(6)
-                .with_rsi(14)
-                .calculate()
+                //.with_sma(10)
+                //.with_ema(20)
+                //.with_ema(6)
+                //.with_rsi(14)
+                //.calculate()
         })
         .collect();
 

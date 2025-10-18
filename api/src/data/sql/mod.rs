@@ -20,17 +20,17 @@ pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe, i64_column_
 /// Metadata stock metadata
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MetaData {
-    symbol: String,
+    pub symbol: String,
     #[allow(dead_code)]
-    currency: String,
+    pub currency: String,
     #[allow(dead_code)]
-    exchange_timezone: String,
+    pub exchange_timezone: String,
     #[allow(dead_code)]
-    exchange: String,
+    pub exchange: String,
     #[allow(dead_code)]
-    exchange_code: String,
+    pub exchange_code: String,
     #[allow(dead_code)]
-    r#type: String,
+    pub r#type: String,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,
 }

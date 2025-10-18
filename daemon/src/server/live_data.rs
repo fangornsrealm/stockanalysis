@@ -150,7 +150,7 @@ pub fn get_livedata_for_active_symbols(
                 let steps = (nower - last_timestamp).num_minutes();
                 let start_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60 * 1000).unwrap();
                 let end_time = chrono::DateTime::from_timestamp_millis(last_timestamp.timestamp_millis() + 60 * steps * 1000).unwrap();
-                let serieses = match api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc()) {
+                let serieses = match api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc(), &mut metadata) {
                     Ok(res) => res,
                     Err(e) => {
                         tracing::error!("Failed to get data updated data for symbol {}: {}", symbol, e);
@@ -167,7 +167,7 @@ pub fn get_livedata_for_active_symbols(
                 let nower = Local::now().naive_utc().and_utc();
                 let steps = (nower - start_date).num_minutes();
                 let end_time = chrono::DateTime::from_timestamp_millis(start_date.timestamp_millis() + 60 * steps * 1000).unwrap();
-                let serieses = match api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc()) {
+                let serieses = match api::data::livedata::live_data(symbol, start_time.naive_utc(), end_time.naive_utc(), &mut metadata) {
                     Ok(res) => res,
                     Err(e) => {
                         tracing::error!("Failed to get data updated data for symbol {}: {}", symbol, e);
