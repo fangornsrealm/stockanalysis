@@ -2,9 +2,9 @@
 //! Work with stock data and analyse and predict stuff
 
 use chrono::{Datelike, NaiveDateTime};
-use tracing::{LevelFilter};
+use log::{LevelFilter};
 //use polars::prelude::*;
-use simpletracing::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
 use std::error::Error;
 use std::fs::File;
 
