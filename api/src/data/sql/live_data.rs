@@ -394,47 +394,13 @@ pub fn insert_live_data(
         if exists.contains(&timestamp) {
             continue;
         }
-        let mut sma = 0.0_f32;
-        let mut ema = 0.0_f32;
-        let mut rsi = 0.0_f32;
-        let mut stochastic = 0.0_f32;
-        let mut macd_value = 0.0_f32;
-        let mut signal_value = 0.0_f32;
-        let mut hist_value = 0.0_f32;
-        for (_indicator_name, indicator_values) in &series.indicators.sma {
-            if let Some(value) = indicator_values.get(i) {
-                sma = value.to_owned();
-            }
-        }
-
-        for (_indicator_name, indicator_values) in &series.indicators.ema {
-            if let Some(value) = indicator_values.get(i) {
-                ema = value.to_owned();
-            }
-        }
-
-        for (_indicator_name, indicator_values) in &series.indicators.rsi {
-            if let Some(value) = indicator_values.get(i) {
-                rsi = value.to_owned();
-            }
-        }
-
-        for (_indicator_name, indicator_values) in &series.indicators.stochastic {
-            if let Some(value) = indicator_values.get(i) {
-                stochastic = value.to_owned();
-            }
-        }
-        for (_indicator_name, (macd, signal, histogram)) in &series.indicators.macd {
-            if let Some(val1) = macd.get(i) {
-                if let Some(val2) = signal.get(i) {
-                    if let Some(val3) = histogram.get(i) {
-                        macd_value = val1.to_owned();
-                        signal_value = val2.to_owned();
-                        hist_value = val3.to_owned();
-                    }
-                }
-            }
-        }
+        let sma = 0.0_f32;
+        let ema = 0.0_f32;
+        let rsi = 0.0_f32;
+        let stochastic = 0.0_f32;
+        let macd_value = 0.0_f32;
+        let signal_value = 0.0_f32;
+        let hist_value = 0.0_f32;
         match connection.execute(
             "INSERT INTO live_data (timestamp, symbol, currency, exchange, open, high, low, close, volume, sma, ema, rsi, stochastic, macd_value, signal_value, hist_value ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
