@@ -45,6 +45,10 @@ pub trait TickerCharts {
     fn options_tables(&self) -> impl std::future::Future<Output = Result<OptionsTables, Box<dyn Error>>>;
     fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn news_sentiment_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn macd_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn ppo_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn mfi_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn stochastic_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
 }
 
 impl TickerCharts for Ticker {
@@ -186,8 +190,11 @@ impl TickerCharts for Ticker {
             .mode(Mode::Lines)
             .line(Line::new().shape(LineShape::Spline));
 
+        let sql_connection = crate::data::sql::connect();
+        let metadata = crate::data::sql::live_data::get_stock_metadata(sql_connection.clone(), &self.ticker);
+        let title = format!("{} ({}) in {} via {}", metadata.name, metadata.symbol, metadata.currency, metadata.exchange);
         let layout = Layout::new()
-            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", self.ticker))
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", title))
             .grid(
                 LayoutGrid::new()
                     .rows(3)
@@ -324,9 +331,11 @@ impl TickerCharts for Ticker {
             .name("MA 200")
             .mode(Mode::Lines)
             .line(Line::new().shape(LineShape::Spline));
-
+        let sql_connection = crate::data::sql::connect();
+        let metadata = crate::data::sql::live_data::get_stock_metadata(sql_connection.clone(), &self.ticker);
+        let title = format!("{} ({}) in {} via {}", metadata.name, self.ticker, metadata.currency, metadata.exchange);
         let layout = Layout::new()
-            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", self.ticker))
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Intra-day Chart</span>", title))
             .grid(
                 LayoutGrid::new()
                     .rows(3)
@@ -826,4 +835,632 @@ impl TickerCharts for Ticker {
         let news_table = news.to_datatable("News", true, DataTableFormat::Number);
         Ok(news_table)
     }
+
+    async fn macd_chart_recent(
+        &self, 
+        ohlcv: DataFrame, 
+        metadata: &crate::data::sql::MetaData,
+        height: Option<usize>, 
+        width: Option<usize>
+    ) -> Result<Plot, Box<dyn Error>> {
+        let mut ohlcv = ohlcv;
+        if ohlcv.height() < 6 {
+            return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
+        if ohlcv.height() > 250 {
+            // drop enough values to limit the graphs to < 100 values
+            let num_to_average = ((ohlcv.height() as f64/ 250.0) + 0.5).round();
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), num_to_average as u32) {
+                Ok(df) => df,
+                Err(e) => {
+                    tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+            Ok(df) => df,
+            Err(error) => {
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let macd_df = self.macd_df(ohlcv.clone(), 12, 26, 9, None).await?;
+        let macd_values = macd_df.column("macd-(12,26,9)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let macd_signal_values = macd_df.column("macd_signal-(12,26,9)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let macd_divergence_values = macd_df.column("macd_divergence-(12,26,9)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
+            .name("Prices");
+        let volume_trace = Bar::new(x.clone(), volume)
+            .name("Volume")
+            //.marker(Marker::new().color(NamedColor::Blue))
+            .x_axis("x")
+            .y_axis("y2");
+        let macd_trace = Scatter::new(x.clone(), macd_values)
+            .name("MACD")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let macd_signal_trace = Scatter::new(x.clone(), macd_signal_values)
+            .name("MACD Signal")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let macd_divergence_trace = Scatter::new(x.clone(), macd_divergence_values)
+            .name("MACD Divergence")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let title = format!("{} ({}) in {} via {}", metadata.name, metadata.symbol, metadata.currency, metadata.exchange);
+        let layout = Layout::new()
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} MACD Chart</span>", title))
+            .grid(
+                LayoutGrid::new()
+                    .rows(3)
+                    .columns(1)
+                    .pattern(GridPattern::Coupled)
+                    .row_order(RowOrder::TopToBottom)
+            )
+            .x_axis(
+                Axis::new()
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(vec![
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1H")
+                            .step(SelectorStep::Hour)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1D")
+                            .step(SelectorStep::Day)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(6)
+                            .label("6M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("YTD")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::ToDate),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1Y")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .label("MAX")
+                            .step(SelectorStep::All),
+                    ])),
+            )
+            .y_axis(
+                Axis::new()
+                    .domain(&[0.4, 1.0])
+            )
+            .y_axis2(
+                Axis::new()
+                    .domain(&[0.2, 0.4])
+            )
+            .y_axis3(
+                Axis::new()
+                    .domain(&[0.0, 0.2])
+            );
+
+        let mut plot = Plot::new();
+        plot.add_trace(Box::new(candlestick_trace));
+        plot.add_trace(volume_trace);
+        plot.add_trace(macd_trace);
+        plot.add_trace(macd_signal_trace);
+        plot.add_trace(macd_divergence_trace);
+        
+        let plot = set_layout(plot, layout, height, width);
+
+        Ok(plot)
+
+    }
+
+    async fn ppo_chart_recent(
+        &self, 
+        ohlcv: DataFrame, 
+        metadata: &crate::data::sql::MetaData,
+        height: Option<usize>, 
+        width: Option<usize>
+    ) -> Result<Plot, Box<dyn Error>> {
+        let mut ohlcv = ohlcv;
+        if ohlcv.height() < 6 {
+            return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
+        if ohlcv.height() > 250 {
+            // drop enough values to limit the graphs to < 100 values
+            let num_to_average = ((ohlcv.height() as f64/ 250.0) + 0.5).round();
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), num_to_average as u32) {
+                Ok(df) => df,
+                Err(e) => {
+                    tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+            Ok(df) => df,
+            Err(error) => {
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let ppo_df = self.ppo_df(ohlcv.clone(), 12, 26, 9, None).await?;
+        let ppo_values = ppo_df.column("ppo-(12,26,9)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ppo_signal_values = ppo_df.column("ppo_signal-(12,26,9)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ppo_divergence_values = ppo_df.column("ppo_divergence-(12,26,9)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
+            .name("Prices");
+        let volume_trace = Bar::new(x.clone(), volume)
+            .name("Volume")
+            //.marker(Marker::new().color(NamedColor::Blue))
+            .x_axis("x")
+            .y_axis("y2");
+        let ppo_trace = Scatter::new(x.clone(), ppo_values)
+            .name("PPO")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let ppo_signal_trace = Scatter::new(x.clone(), ppo_signal_values)
+            .name("PPO Signal")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let ppo_divergence_trace = Scatter::new(x.clone(), ppo_divergence_values)
+            .name("PPO Divergence")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let title = format!("{} ({}) in {} via {}", metadata.name, metadata.symbol, metadata.currency, metadata.exchange);
+        let layout = Layout::new()
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} PPO Chart</span>", title))
+            .grid(
+                LayoutGrid::new()
+                    .rows(3)
+                    .columns(1)
+                    .pattern(GridPattern::Coupled)
+                    .row_order(RowOrder::TopToBottom)
+            )
+            .x_axis(
+                Axis::new()
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(vec![
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1H")
+                            .step(SelectorStep::Hour)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1D")
+                            .step(SelectorStep::Day)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(6)
+                            .label("6M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("YTD")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::ToDate),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1Y")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .label("MAX")
+                            .step(SelectorStep::All),
+                    ])),
+            )
+            .y_axis(
+                Axis::new()
+                    .domain(&[0.4, 1.0])
+            )
+            .y_axis2(
+                Axis::new()
+                    .domain(&[0.2, 0.4])
+            )
+            .y_axis3(
+                Axis::new()
+                    .domain(&[0.0, 0.2])
+            );
+
+        let mut plot = Plot::new();
+        plot.add_trace(Box::new(candlestick_trace));
+        plot.add_trace(volume_trace);
+        plot.add_trace(ppo_trace);
+        plot.add_trace(ppo_signal_trace);
+        plot.add_trace(ppo_divergence_trace);
+        
+        let plot = set_layout(plot, layout, height, width);
+
+        Ok(plot)
+
+    }
+    
+    async fn mfi_chart_recent(
+        &self, 
+        ohlcv: DataFrame, 
+        metadata: &crate::data::sql::MetaData,
+        height: Option<usize>, 
+        width: Option<usize>
+    ) -> Result<Plot, Box<dyn Error>> {
+        let mut ohlcv = ohlcv;
+        if ohlcv.height() < 6 {
+            return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
+        if ohlcv.height() > 250 {
+            // drop enough values to limit the graphs to < 100 values
+            let num_to_average = ((ohlcv.height() as f64/ 250.0) + 0.5).round();
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), num_to_average as u32) {
+                Ok(df) => df,
+                Err(e) => {
+                    tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+            Ok(df) => df,
+            Err(error) => {
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let mfi_df = self.mfi_df(ohlcv.clone(), 14).await?;
+        let mfi_values = mfi_df.column("mfi-14")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
+            .name("Prices");
+        let volume_trace = Bar::new(x.clone(), volume)
+            .name("Volume")
+            //.marker(Marker::new().color(NamedColor::Blue))
+            .x_axis("x")
+            .y_axis("y2");
+        let mfi_trace = Scatter::new(x.clone(), mfi_values)
+            .name("MFI")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let title = format!("{} ({}) in {} via {}", metadata.name, metadata.symbol, metadata.currency, metadata.exchange);
+        let layout = Layout::new()
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} MFI Chart</span>", title))
+            .grid(
+                LayoutGrid::new()
+                    .rows(3)
+                    .columns(1)
+                    .pattern(GridPattern::Coupled)
+                    .row_order(RowOrder::TopToBottom)
+            )
+            .x_axis(
+                Axis::new()
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(vec![
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1H")
+                            .step(SelectorStep::Hour)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1D")
+                            .step(SelectorStep::Day)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(6)
+                            .label("6M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("YTD")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::ToDate),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1Y")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .label("MAX")
+                            .step(SelectorStep::All),
+                    ])),
+            )
+            .y_axis(
+                Axis::new()
+                    .domain(&[1.0, 1.0])
+            );
+
+        let mut plot = Plot::new();
+        plot.add_trace(Box::new(candlestick_trace));
+        plot.add_trace(volume_trace);
+        plot.add_trace(mfi_trace);
+        
+        let plot = set_layout(plot, layout, height, width);
+
+        Ok(plot)
+
+    }
+        
+    async fn stochastic_chart_recent(
+        &self, 
+        ohlcv: DataFrame, 
+        metadata: &crate::data::sql::MetaData,
+        height: Option<usize>, 
+        width: Option<usize>
+    ) -> Result<Plot, Box<dyn Error>> {
+
+        let mut ohlcv = ohlcv;
+        if ohlcv.height() < 6 {
+            return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
+        if ohlcv.height() > 250 {
+            // drop enough values to limit the graphs to < 100 values
+            let num_to_average = ((ohlcv.height() as f64/ 250.0) + 0.5).round();
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), num_to_average as u32) {
+                Ok(df) => df,
+                Err(e) => {
+                    tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+            Ok(df) => df,
+            Err(error) => {
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let bb_df = self.bb_df(ohlcv.clone(), 20, 2.0, None).await?;
+        let bb_values = bb_df.column("bb-(20,2)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let bb_upper_values = bb_df.column("bb_upper-(20,2)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let bb_lower_values = bb_df.column("bb_lower-(20,2)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let fs_df = self.fs_df(ohlcv.clone(), 14, None).await?;
+        let fs_values = fs_df.column("fs-14")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ss_df = self.ss_df(ohlcv.clone(), 7, 3, None).await?;
+        let ss_values = ss_df.column("ss-(7,3)")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let sd_df = self.sd_df(ohlcv.clone(), 20, None).await?;
+        let sd_values = sd_df.column("sd-20")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
+            .name("Prices");
+        let volume_trace = Bar::new(x.clone(), volume)
+            .name("Volume")
+            //.marker(Marker::new().color(NamedColor::Blue))
+            .x_axis("x")
+            .y_axis("y2");
+        let bb_trace = Scatter::new(x.clone(), bb_values)
+            .name("BB")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+        let bb_upper_trace = Scatter::new(x.clone(), bb_upper_values)
+            .name("BB Upper")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+        let bb_lower_trace = Scatter::new(x.clone(), bb_lower_values)
+            .name("BB Lower")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+        let fs_trace = Scatter::new(x.clone(), fs_values)
+            .name("Fast")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let ss_trace = Scatter::new(x.clone(), ss_values)
+            .name("Slow")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let sd_trace = Scatter::new(x.clone(), sd_values)
+            .name("Deviation")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let mad_df = self.mad_df(ohlcv.clone(), 20, None).await?;
+        let mad_values = mad_df.column("mad-20")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let mad_trace = Scatter::new(x.clone(), mad_values)
+            .name("MAD")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let atr_df = self.atr_df(ohlcv.clone(), 14).await?;
+        let atr_values = atr_df.column("atr-14")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let atr_trace = Scatter::new(x.clone(), atr_values)
+            .name("ATR")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let roc_df = self.roc_df(ohlcv.clone(), 1, None).await?;
+        let roc_values = roc_df.column("roc-1")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let roc_trace = Scatter::new(x.clone(), roc_values)
+            .name("ROC")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let obv_df = self.obv_df(ohlcv.clone()).await?;
+        let obv_values = obv_df.column("obv")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let obv_trace = Scatter::new(x.clone(), obv_values)
+            .name("OBV")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y2");
+        let title = format!("{} ({}) in {} via {}", metadata.name, metadata.symbol, metadata.currency, metadata.exchange);
+        let layout = Layout::new()
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Stochastic Chart</span>", title))
+            .grid(
+                LayoutGrid::new()
+                    .rows(3)
+                    .columns(1)
+                    .pattern(GridPattern::Coupled)
+                    .row_order(RowOrder::TopToBottom)
+            )
+            .x_axis(
+                Axis::new()
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(vec![
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1H")
+                            .step(SelectorStep::Hour)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1D")
+                            .step(SelectorStep::Day)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(6)
+                            .label("6M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("YTD")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::ToDate),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1Y")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .label("MAX")
+                            .step(SelectorStep::All),
+                    ])),
+            )
+            .y_axis(
+                Axis::new()
+                    .domain(&[0.4, 1.0])
+            )
+            .y_axis2(
+                Axis::new()
+                    .domain(&[0.2, 0.4])
+            )
+            .y_axis3(
+                Axis::new()
+                    .domain(&[0.0, 0.2])
+            );
+
+        let mut plot = Plot::new();
+        plot.add_trace(Box::new(candlestick_trace));
+        plot.add_trace(volume_trace);
+        plot.add_trace(bb_trace);
+        plot.add_trace(bb_upper_trace);
+        plot.add_trace(bb_lower_trace);
+        plot.add_trace(fs_trace);
+        plot.add_trace(ss_trace);
+        plot.add_trace(sd_trace);
+        plot.add_trace(mad_trace);
+        plot.add_trace(atr_trace);
+        plot.add_trace(roc_trace);
+        plot.add_trace(obv_trace);
+       
+        let plot = set_layout(plot, layout, height, width);
+
+        Ok(plot)
+
+    }
+
 }

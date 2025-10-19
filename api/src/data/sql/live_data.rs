@@ -398,7 +398,7 @@ pub fn get_stock_metadata(
                                     }
                                 }
                                 match row.get(1) {
-                                    Ok(val) => metadata.exchange = val,
+                                    Ok(val) => metadata.exchange_code = val,
                                     Err(error) => {
                                         tracing::error!("Failed to read exchange for live_data: {}", error);
                                         continue;
@@ -407,7 +407,7 @@ pub fn get_stock_metadata(
                             }
                             Ok(None) => {
                                 //tracing::debug!("No data read from indices.");
-                                return metadata;
+                                break;
                             }
                             Err(error) => {
                                 tracing::error!("Failed to read a row from live_data: {}", error);
@@ -426,10 +426,10 @@ pub fn get_stock_metadata(
         }
     }
     // get the stock details for this symbol
-    let query = "SELECT name, mic_code FROM stocks WHERE symbol = ?1 AND exchange = ?2 AND currency = ?3";
+    let query = "SELECT name FROM stocks WHERE symbol = ?1 AND mic_code = ?2";
     match connection.prepare(query) {
         Ok(mut statement) => {
-            match statement.query(params![symbol, &metadata.exchange, &metadata.currency]) {
+            match statement.query(params![symbol, &metadata.exchange_code]) {
                 Ok(mut rows) => {
                     loop {
                         match rows.next() {
@@ -444,17 +444,10 @@ pub fn get_stock_metadata(
                                         continue;
                                     }
                                 }
-                                match row.get(1) {
-                                    Ok(val) => metadata.exchange_code = val,
-                                    Err(error) => {
-                                        tracing::error!("Failed to read mic_code for stocks: {}", error);
-                                        continue;
-                                    }
-                                }
                             }
                             Ok(None) => {
                                 //tracing::debug!("No data read from indices.");
-                                return metadata;
+                                break;
                             }
                             Err(error) => {
                                 tracing::error!("Failed to read a row from stocks: {}", error);
@@ -473,16 +466,16 @@ pub fn get_stock_metadata(
         }
     }
     // get the exchange details for this symbol
-    let query = "SELECT code, timezome FROM exchanges WHERE name = ?1";
+    let query = "SELECT title, timezone FROM exchanges WHERE code = ?1";
     match connection.prepare(query) {
         Ok(mut statement) => {
-            match statement.query(params![&metadata.exchange]) {
+            match statement.query(params![&metadata.exchange_code]) {
                 Ok(mut rows) => {
                     loop {
                         match rows.next() {
                             Ok(Some(row)) => {
                                 match row.get(0) {
-                                    Ok(val) => metadata.exchange_code = val,
+                                    Ok(val) => metadata.exchange = val,
                                     Err(error) => {
                                         tracing::error!(
                                             "Failed to read code for exchanges: {}",
@@ -559,7 +552,7 @@ pub fn insert_live_data(
         let hist_value = 0.0_f32;
         match connection.execute(
             "INSERT INTO live_data (timestamp, symbol, currency, exchange, open, high, low, close, volume, sma, ema, rsi, stochastic, macd_value, signal_value, hist_value ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
+            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange_code, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
         ) {
             Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {

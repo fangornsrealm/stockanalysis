@@ -1,6 +1,5 @@
 use polars::prelude::*;
 use std::error::Error;
-use chrono::Timelike;
 
 use api::prelude::*;
 
@@ -28,16 +27,63 @@ fn candlestick_chart_live_async(ticker: &Ticker) -> Result<plotly::plot::Plot, B
     )
 }
 
+fn macd_chart_recent_async(
+    ticker: &Ticker,
+    ohlcv: DataFrame, 
+    metadata: &api::data::sql::MetaData,
+) -> Result<plotly::plot::Plot, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.macd_chart_recent(ohlcv, metadata, None, None)
+    )
+}
+
+fn ppo_chart_recent_async(
+    ticker: &Ticker,
+    ohlcv: DataFrame, 
+    metadata: &api::data::sql::MetaData,
+) -> Result<plotly::plot::Plot, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.ppo_chart_recent(ohlcv, metadata, None, None)
+    )
+}
+
+fn mfi_chart_recent_async(
+    ticker: &Ticker,
+    ohlcv: DataFrame, 
+    metadata: &api::data::sql::MetaData,
+) -> Result<plotly::plot::Plot, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.mfi_chart_recent(ohlcv, metadata, None, None)
+    )
+}
+
+fn stochastic_chart_recent_async(
+    ticker: &Ticker,
+    ohlcv: DataFrame, 
+    metadata: &api::data::sql::MetaData,
+) -> Result<plotly::plot::Plot, Box<dyn Error>> {
+    let handle = tokio::runtime::Handle::current();
+    let _ = handle.enter();
+    futures::executor::block_on(
+        ticker.stochastic_chart_recent(ohlcv, metadata, None, None)
+    )
+}
+
 /// For a single symbol create a hard and HTML file for the last 120 minutes
 pub fn ticker_chart_recent_for_symbol(
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
     stock_symbol: String,
     filepath: &std::path::PathBuf,
+    start_datetime: chrono::DateTime<chrono::Utc>,
+    end_datetime: chrono::DateTime<chrono::Utc>,
 ) {
     let archivepath = super::archive_path(filepath);
-    let nower = chrono::Utc::now();
-    let end_datetime = nower.date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight(), 0).unwrap()).and_utc();
-    let start_datetime = nower.clone().date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight() - 120*60, 0).unwrap()).and_utc();
     let mut ticker: Ticker;
     let mut tickers = match tickers_mutex.lock() {
         Ok(t) => t,
@@ -47,7 +93,7 @@ pub fn ticker_chart_recent_for_symbol(
         }
     };
     if !tickers.contains_key(&stock_symbol) {
-        ticker= api::models::ticker::TickerBuilder::new()
+        ticker = api::models::ticker::TickerBuilder::new()
             .ticker(&stock_symbol)
             .start_date(&start_datetime.naive_utc().to_string())
             .end_date(&end_datetime.naive_utc().to_string())
@@ -81,6 +127,98 @@ pub fn ticker_chart_recent_for_symbol(
             tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
         },
     }
+    let sql_connection = api::data::sql::connect();
+    let ohlcv = match api::data::sql::to_dataframe::ohlcv_to_dataframe(
+            sql_connection.clone(), &stock_symbol, 
+            start_datetime.naive_utc(), end_datetime.naive_utc()
+    ) {
+        Ok(v) => {
+            if v.len() == 0 {
+                return;
+            }
+            let df = v[0].clone();
+            df
+        },
+        Err(e) => {
+            tracing::error!("Failed to retrieve data for {}: {}", stock_symbol, e);
+            return;
+        },
+    };
+    let metadata = api::data::sql::live_data::get_stock_metadata(sql_connection.clone(), &stock_symbol);
+
+    match macd_chart_recent_async(&ticker, ohlcv.clone(), &metadata) {
+        Ok(pl) => {
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_macd_recent.jpg".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            pl.to_jpeg(&super::osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+            let html = pl.to_html();
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_macd_recent.html".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&path, &html).expect("Should be able to write to file");
+        },
+        Err(error) => {
+            tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+        },
+    }
+    match ppo_chart_recent_async(&ticker, ohlcv.clone(), &metadata) {
+        Ok(pl) => {
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_ppo_recent.jpg".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            pl.to_jpeg(&super::osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+            let html = pl.to_html();
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_ppo_recent.html".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&path, &html).expect("Should be able to write to file");
+        },
+        Err(error) => {
+            tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+        },
+    }
+    match mfi_chart_recent_async(&ticker, ohlcv.clone(), &metadata) {
+        Ok(pl) => {
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_mfi_recent.jpg".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            pl.to_jpeg(&super::osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+            let html = pl.to_html();
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_mfi_recent.html".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&path, &html).expect("Should be able to write to file");
+        },
+        Err(error) => {
+            tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+        },
+    }
+    match stochastic_chart_recent_async(&ticker, ohlcv.clone(), &metadata) {
+        Ok(pl) => {
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_stochastic_recent.jpg".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            pl.to_jpeg(&super::osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+            let html = pl.to_html();
+            let mut file_name = stock_symbol.clone();
+            file_name.extend("_stochastic_recent.html".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&path, &html).expect("Should be able to write to file");
+        },
+        Err(error) => {
+            tracing::error!("Failed to crate chart for ticker {}!: {}", stock_symbol, error);
+        },
+    }
+
 }
 
 /// Create charts and HTML files for minutely data for the last day

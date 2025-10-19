@@ -352,6 +352,41 @@ mod test {
         }
     }
 
+    #[tokio::test]
+    async fn test_ticker_chart_recent_for_symbol() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_ticker_chart_recent_for_symbol");
+        let mut filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        if !filepath.is_dir() {
+            match std::fs::create_dir_all(filepath.clone()) {
+                Ok(()) => (),
+                Err(e) => {
+                    tracing::error!("Failed to create directory: {}", e);
+                },
+            }
+            filepath = dirs::home_dir().unwrap();
+        }
+        let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =
+                std::sync::Arc::new(std::sync::Mutex::new(
+                    std::collections::HashMap::new()
+                ));
+        let nower = chrono::Utc::now();
+        let yesterday = yesterday().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0,0).unwrap()).and_utc();
+        let end_datetime = yesterday.date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight(), 0).unwrap()).and_utc();
+        let start_datetime = yesterday.clone().date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight() - 300*60, 0).unwrap()).and_utc();
+
+        charts::ticker_chart_recent_for_symbol(tickers.clone(), "AAPL".to_string(), &filepath, start_datetime, end_datetime);
+    }
 
     #[tokio::test]
     async fn test_screener() {

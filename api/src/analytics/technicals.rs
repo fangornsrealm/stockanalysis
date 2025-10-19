@@ -559,7 +559,7 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut ss = SlowStochastic::new(stochastic_period, ema_period).unwrap();
-        let col = format!("ss-({stochastic_period},{ema_period}`)");
+        let col = format!("ss-({stochastic_period},{ema_period})");
         let ss_series = Series::new(col.as_str().into(), col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
@@ -576,7 +576,7 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut ss = SlowStochastic::new(stochastic_period, ema_period).unwrap();
-        let col = format!("ss-({stochastic_period},{ema_period}`)");
+        let col = format!("ss-({stochastic_period},{ema_period})");
         let ss_series = Series::new(col.as_str().into(), col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),

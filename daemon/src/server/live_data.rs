@@ -1,5 +1,5 @@
 use polars::prelude::*;
-use chrono::{NaiveTime, offset::Local};
+use chrono::{NaiveTime, offset::Local, Timelike};
 use api::prelude::*;
 
 #[allow(unreachable_code, unused_variables, dead_code)]
@@ -104,8 +104,12 @@ pub fn run_analysis_on_updated_dataframe(
         // detect a increasing or decreasing slope and raise a notification
         let slope = api::analytics::detectors::increasing_slope(&vv[vv.len()-1], 0.5, 0.3);
         if slope != 0.0 {
+            let nower = chrono::Utc::now();
+            let end_datetime = nower.date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight(), 0).unwrap()).and_utc();
+            let start_datetime = nower.clone().date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(nower.num_seconds_from_midnight() - 120*60, 0).unwrap()).and_utc();
+
             // create a new chart with the last 120 minutes
-            super::charts::ticker_chart_recent_for_symbol(tickers_mutex.clone(), symbol.to_string(), filepath);
+            super::charts::ticker_chart_recent_for_symbol(tickers_mutex.clone(), symbol.to_string(), filepath, start_datetime, end_datetime);
             // send alarm
             let text;
             if slope > 0.0 {
