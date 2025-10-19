@@ -5,68 +5,6 @@ use polars::prelude::*;
 use std::error::Error;
 //use finalytics::utils::date_utils::{round_datetime_to_day, round_datetime_to_hour, round_datetime_to_minute};
 
-/// Converts a date string in YYYY-MM-DD format to a Unix Timestamp milliseconds since the Epoch
-pub fn str_to_timestamp(datetime_str: &str) -> Result<i64, Box<dyn Error>> {
-    let datetime = NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%d %H:%M:%S")?;
-    let unix_timestamp = datetime.and_utc().timestamp_millis();
-    Ok(unix_timestamp)
-}
-
-/// Converts a datetime to a Unix Timestamp milliseconds since the Epoch
-pub fn to_timestamp(datetime: NaiveDateTime) -> i64 {
-    datetime.and_utc().timestamp_millis()
-}
-
-/// Converts a Unix Timestamp to a date string in YYYY-MM-DD format
-pub fn to_datetime(unix_timestamp: i64) -> NaiveDateTime {
-    let datetime = DateTime::from_timestamp_millis(unix_timestamp).unwrap();
-    datetime.naive_utc()
-}
-
-/// Converts a Unix Timestamp to a date string in YYYY-MM-DD format
-pub fn to_date(unix_timestamp: i64) -> NaiveDateTime {
-    let datetime = DateTime::from_timestamp_millis(unix_timestamp).unwrap();
-    datetime.date_naive().into()
-}
-
-pub fn date_to_timestamp_millis(dt: NaiveDateTime) -> i64 {
-    let datetime = dt.date().and_time(chrono::NaiveTime::default());
-    let date = datetime.and_utc();
-    date.timestamp_millis()
-}
-
-/// converts a string into a NaiveDateTime
-pub fn str_to_datetime(datetime_str: &str) -> Result<NaiveDateTime, Box<dyn Error>> {
-    let datetime = NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%d %H:%M:%S")?;
-    Ok(datetime)
-}
-
-/// converts a vector of UNIX Timestamps to a vector of NaiveDateTime
-pub fn i64_column_to_datetime_vec(df: &DataFrame) -> Result<Vec<NaiveDateTime>, Box<dyn Error>> {
-    let df2 = df.column("timestamp")?.i64()?
-            .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
-            .naive_utc()).collect::<Vec<NaiveDateTime>>();
-    Ok(df2)
-}
-
-pub fn f64_column_to_vec(
-    df: &DataFrame, 
-    columnname: &str
-) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let v = df.column(columnname)?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-    Ok(v)
-}
-
-pub fn i64_column_to_vec(
-    df: &DataFrame, 
-    columnname: &str
-) -> Result<Vec<i64>, Box<dyn std::error::Error>> {
-    let v = df.column(columnname)?.i64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<i64>>();
-    Ok(v)
-}
-
 /// Returns the Ticker OHLCV Data from the database for a given time range
 pub fn ohlcv_to_dataframe(
     sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
@@ -205,7 +143,7 @@ pub fn daily_ohlcv_to_dataframe(
         // timestamps are expected to be number of milliseconds since 1.1. 1970.
         let timestamp = series
             .iter()
-            .map(|o| date_to_timestamp_millis(to_date(o.datetime * 1000)))
+            .map(|o| crate::data::dataframes::date_to_timestamp_millis(crate::data::dataframes::to_date(o.datetime * 1000)))
             .collect::<Vec<i64>>();
 
         let open = series.iter().map(|o| o.open).collect::<Vec<f64>>();

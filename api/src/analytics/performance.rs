@@ -6,6 +6,7 @@ use crate::analytics::optimization::{ObjectiveFunction, portfolio_optimization};
 use crate::analytics::statistics::{PerformanceStats, covariance_matrix, daily_portfolio_returns};
 use crate::prelude::{Column, TickersData, IntervalDays, Tickers, Ticker};
 use crate::utils::date_utils::interval_days;
+use crate::data::dataframes::i64_column_to_datetime_vec;
 
 #[derive(Debug, Clone)]
 pub struct TickerPerformanceStats {
@@ -69,7 +70,7 @@ impl TickerPerformance for Ticker {
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
-        let dates_array = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&benchmark_returns) {
+        let dates_array = match i64_column_to_datetime_vec(&benchmark_returns) {
             Ok(v) => v,
             Err(_error) => {
                 benchmark_returns.column("timestamp")?.i64()?.to_vec().iter().map(|x|
@@ -170,7 +171,7 @@ impl PortfolioPerformanceStats {
             portfolio_returns = portfolio_returns.filter(&mask)?;
         }
         /*
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(benchmark_returns_timestamp.clone()) {
+        let datetimes = match i64_column_to_datetime_vec(benchmark_returns_timestamp.clone()) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);

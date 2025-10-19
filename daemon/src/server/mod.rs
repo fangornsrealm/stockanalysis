@@ -15,11 +15,13 @@ pub use charts::{run_ticker_charts, run_ticker_charts_livedata};
 mod daily_data;
 pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
-pub use live_data::{run_analysis_on_updated_dataframe, get_livedata_for_active_symbols};
+pub use live_data::get_livedata_for_active_symbols;
 mod screener;
 //pub use screener::run_screener_process;
 mod portfolio;
 pub use portfolio::run_portfolio_analysis;
+
+pub use api::data::dataframes::{get_dataframe_for_active_symbols, run_analysis_on_updated_dataframe};
 
 /// convert an OsString (from PathBuf) to a usable String
 pub fn osstr_to_string(osstr: std::ffi::OsString) -> String {
@@ -111,7 +113,8 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
 }
 
 pub async fn run_jobs(
-    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>, 
+    tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
+    dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>>,
     sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
     last_nightly_update_mutex: Arc<std::sync::Mutex<chrono::DateTime<Local>>>,
 ) -> EyreResult<()> {
@@ -149,14 +152,17 @@ pub async fn run_jobs(
         api::data::livedata::update_nightly(sql_connection.clone(), &symbols);
         tracing::debug!("Done updating the database with daily data.");
         
-        //tracing::debug!("For now retrieve the intra day data once a day.");
-        //get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
-        //run_ticker_charts_livedata(symbolsstrings, filepath, tickers_mutex)?;
+        tracing::debug!("Retrieve the intra day data once a day.");
+        get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
 
         tracing::debug!("Starting generation of ticker charts.");
         match run_ticker_charts(&symbols, &filepath, tickers_mutex.clone()) {
             Ok(()) => {},
             Err(e) => tracing::error!("Update of ticker charts failed: {}", e)
+        }
+        match run_ticker_charts_livedata(&symbols, &filepath, tickers_mutex.clone()) {
+            Ok(()) => {},
+            Err(e) => tracing::error!("Update of ticker charts from live data failed: {}", e)
         }
         //tracing::debug!("Starting screener process.");
         //match run_screener_process(&filepath) {
@@ -172,17 +178,10 @@ pub async fn run_jobs(
         run_analysis_on_historical_data(sql_connection.clone(), &symbols);
     } else {
         // run live updates every minute on Weekdays
-        if now.hour() > 6 || now.hour() < 23 {
-            //tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
-            tracing::debug!("Retrieve the intra day data for all active symbols.");
-            get_livedata_for_active_symbols( sql_connection.clone(), &symbols);
-            
-            tracing::debug!("Create all live data charts for all active symbols.");
-            let _ret = run_ticker_charts_livedata(&symbols, &filepath, tickers_mutex.clone());
-            
-            tracing::debug!("Run live analysis on updated data.");
-            run_analysis_on_updated_dataframe(sql_connection.clone(), &symbols, tickers_mutex.clone(), &filepath);
-        }
+        
+        tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
+        get_dataframe_for_active_symbols(&symbols, tickers_mutex.clone(), dataframes.clone());
+        run_analysis_on_updated_dataframe(&symbols, tickers_mutex.clone(), dataframes.clone(), &filepath);
     }
 
     Ok(())
@@ -195,6 +194,10 @@ pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreRes
             std::sync::Arc::new(std::sync::Mutex::new(
                 std::collections::HashMap::new()
             ));
+    let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::HashMap::new()
+            ));
     let last_nightly_update: Arc<std::sync::Mutex<chrono::DateTime<Local>>> =
             std::sync::Arc::new(std::sync::Mutex::new(
                 chrono::DateTime::from_timestamp(24 * 3600 * 100,0).unwrap().naive_local().and_local_timezone(chrono::Local).unwrap()
@@ -203,7 +206,7 @@ pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreRes
         let mut interval = time::interval(Duration::from_secs(300)); // update of data takes over four minutes, so we cannot get faster than every five minutes
         loop {
             interval.tick().await; // This should go first.
-            tokio::spawn(run_jobs(tickers.clone(), sql_connection.clone(), last_nightly_update.clone()));
+            tokio::spawn(run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()));
         }
     });
     // Wait for shutdown
@@ -438,11 +441,15 @@ mod test {
                 std::sync::Arc::new(std::sync::Mutex::new(
                     std::collections::HashMap::new()
                 ));
+        let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::HashMap::new()
+            ));
         let last_nightly_update: Arc<std::sync::Mutex<chrono::DateTime<Local>>> =
                 std::sync::Arc::new(std::sync::Mutex::new(
                     chrono::DateTime::from_timestamp(24 * 3600 * 100,0).unwrap().naive_local().and_local_timezone(chrono::Local).unwrap()
                 ));
-        match run_jobs(tickers.clone(), sql_connection.clone(), last_nightly_update.clone()).await {
+        match run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()).await {
             Ok(()) => {},
             Err(e) => tracing::error!("screener process threw error: {}", e),
         }

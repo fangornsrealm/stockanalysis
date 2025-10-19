@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Datelike};
 use lazy_static::lazy_static;
-use market_data::{EnhancedMarketSeries, Interval, MarketClient, Polygon};
+use market_data::{MarketSeries, Interval, MarketClient, Polygon};
 use std::env::var;
 
 use super::super::sql;
@@ -15,7 +15,7 @@ pub fn live_data(
     symbol: &str,
     start_time: chrono::NaiveDateTime,
     end_time: chrono::NaiveDateTime,
-)  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
+)  -> Result<Vec<MarketSeries>, Box<dyn std::error::Error>> {
     let site: Polygon = Polygon::new(TOKEN.to_string());
     // create the MarketClient
     let mut client: MarketClient<Polygon> = MarketClient::new(site);
@@ -35,29 +35,12 @@ pub fn live_data(
     // transform into MarketSeries, that can be used for further processing
     let resvec = client.transform_data();
 
-    //data.iter().for_each(|output| match output {
-    //    Ok(data) =>  {
-    //        tracing::debug!("{}\n\n", data);
-    //        let _ret = crate::sql::insert_timeseries(sql_connection.clone(), &metadata, data);
-    //    },
-    //    Err(err) => tracing::error!("{}", err),
-    //});
-    // the data can be enhanced with the calculation of a number of  market indicators
-    let enhanced_data: Vec<EnhancedMarketSeries> = resvec
+    let enhanced_data: Vec<MarketSeries> = resvec
         .into_iter()
         .filter_map(|series| series.ok())
-        .map(|series| {
-            series
-                .enhance_data()
-                .with_sma(10)
-                .with_ema(20)
-                .with_ema(6)
-                .with_rsi(14)
-                .calculate()
-        })
+        .map(|series| {series})
         .collect();
 
-    // store the data
     Ok(enhanced_data)
 }
 

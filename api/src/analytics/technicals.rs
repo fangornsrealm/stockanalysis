@@ -5,6 +5,7 @@ use chrono::{DateTime, NaiveDateTime};
 use polars::prelude::*;
 use crate::models::ticker::Ticker;
 use crate::data::ticker::TickerData;
+use crate::data::dataframes::i64_column_to_datetime_vec;
 
 /// Enum of OHLCV DataFrame Columns
 pub enum Column {
@@ -337,7 +338,7 @@ impl TechnicalIndicators for Ticker {
     async fn mfi(&self, period: usize) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
         let mut mfi = MoneyFlowIndex::new(period).unwrap();
-        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let mut timestamp = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(v) => v,
             Err(_error) => {
                 ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
@@ -390,7 +391,7 @@ impl TechnicalIndicators for Ticker {
 
     async fn mfi_df(&self, ohlcv: DataFrame, period: usize) -> Result<DataFrame, Box<dyn Error>> {
         let mut mfi = MoneyFlowIndex::new(period).unwrap();
-        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let mut timestamp = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(v) => v,
             Err(_error) => {
                 ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
@@ -779,7 +780,7 @@ impl TechnicalIndicators for Ticker {
         let ohlcv = self.get_chart_daily().await?;
         let mut atr = AverageTrueRange::new(period).unwrap();
         let col = format!("atr-{period}");
-        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let mut timestamp = match crate::data::dataframes::i64_column_to_datetime_vec(&ohlcv) {
             Ok(v) => v,
             Err(_error) => {
                 ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
@@ -832,7 +833,7 @@ impl TechnicalIndicators for Ticker {
     async fn atr_df(&self, ohlcv: DataFrame, period: usize) -> Result<DataFrame, Box<dyn Error>> {
         let mut atr = AverageTrueRange::new(period).unwrap();
         let col = format!("atr-{period}");
-        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let mut timestamp = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(v) => v,
             Err(_error) => {
                 ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
@@ -935,7 +936,7 @@ impl TechnicalIndicators for Ticker {
     async fn obv(&self) -> Result<DataFrame, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
         let mut obv = OnBalanceVolume::new();
-        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let mut timestamp = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(v) => v,
             Err(_error) => {
                 ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|
@@ -987,7 +988,7 @@ impl TechnicalIndicators for Ticker {
 
     async fn obv_df(&self, ohlcv: DataFrame) -> Result<DataFrame, Box<dyn Error>> {
         let mut obv = OnBalanceVolume::new();
-        let mut timestamp = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let mut timestamp = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(v) => v,
             Err(_error) => {
                 ohlcv.column("timestamp")?.i64()?.to_vec().iter().map(|x|

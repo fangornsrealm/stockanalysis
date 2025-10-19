@@ -11,7 +11,7 @@ use std::env::var;
 use polars::prelude::*;
 use std::error::Error;
 use chrono::NaiveDateTime;
-use market_data::EnhancedMarketSeries;
+use market_data::MarketSeries;
 
 // find out which provider is used and use the according function
 pub fn live_data(
@@ -19,7 +19,7 @@ pub fn live_data(
     start_time: NaiveDateTime,
     end_time: NaiveDateTime,
     metadata: &mut crate::data::sql::MetaData,
-)  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
+)  -> Result<Vec<MarketSeries>, Box<dyn std::error::Error>> {
 
     match var("Twelvedata_TOKEN") {
         Ok(_val) => twelvedata::live_data(symbol, start_time, end_time, metadata),
@@ -58,20 +58,20 @@ pub fn update_nightly(
 
 
 pub fn marketdata_to_timeseries(
-    timeseries: &market_data::EnhancedMarketSeries,
+    timeseries: &market_data::MarketSeries,
 ) -> Vec<TimeSeriesData> {
     let mut series = Vec::new();
-    let num_values = timeseries.series.len();
+    let num_values = timeseries.data.len();
     let base_timestamp = chrono::Utc::now().timestamp();
     for i in 0..num_values {
         let timestamp = base_timestamp - (num_values - i) as i64 * 60;
         let v = TimeSeriesData {
             datetime: timestamp,
-            open: timeseries.series[i].open as f64,
-            high: timeseries.series[i].high as f64,
-            low: timeseries.series[i].low as f64,
-            close: timeseries.series[i].close as f64,
-            volume: timeseries.series[i].volume as f64,
+            open: timeseries.data[i].open as f64,
+            high: timeseries.data[i].high as f64,
+            low: timeseries.data[i].low as f64,
+            close: timeseries.data[i].close as f64,
+            volume: timeseries.data[i].volume as f64,
         };
         series.push(v);
     }
@@ -87,7 +87,7 @@ pub fn update_dataframe(
     let start_timestamp = col_val[col_val.len()-1];
     let start_time = chrono::DateTime::from_timestamp_millis(start_timestamp).unwrap().naive_utc();
     let end_time = chrono::Utc::now().naive_utc();
-    let enhanced_data: Vec<EnhancedMarketSeries> = match live_data(&stock_symbol, start_time, end_time, metadata) {
+    let enhanced_data: Vec<MarketSeries> = match live_data(&stock_symbol, start_time, end_time, metadata) {
         Ok(res) => res,
         Err(error) => {
             tracing::error!("Failed to update timeseries data for {}: {}", stock_symbol, error);
@@ -101,7 +101,7 @@ pub fn update_dataframe(
 
     let timestamp = series
         .iter()
-        .map(|o| super::sql::to_dataframe::to_datetime(o.datetime))
+        .map(|o| super::dataframes::to_datetime(o.datetime))
         .collect::<Vec<NaiveDateTime>>();
 
     let open = series

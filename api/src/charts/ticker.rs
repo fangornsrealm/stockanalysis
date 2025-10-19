@@ -13,6 +13,7 @@ use crate::analytics::performance::TickerPerformance;
 use crate::analytics::stochastics::VolatilitySurface;
 use crate::analytics::statistics::{cumulative_returns_list, maximum_drawdown};
 use crate::charts::set_layout;
+use crate::data::dataframes::i64_column_to_datetime_vec;
 
 pub struct FinancialsTables {
     pub income_statement: DataTable,
@@ -59,7 +60,7 @@ impl TickerCharts for Ticker {
     /// * `DataTable` - Interactive Table Chart struct
     async fn ohlcv_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -95,7 +96,7 @@ impl TickerCharts for Ticker {
 
     async fn ohlcv_table_live(&self) -> Result<DataTable, Box<dyn Error>> {
         let ohlcv = self.get_chart().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -141,7 +142,7 @@ impl TickerCharts for Ticker {
     /// * `Plot` Plotly Chart struct
     async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let ohlcv = self.get_chart_daily().await?;
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -283,7 +284,7 @@ impl TickerCharts for Ticker {
                 }
             }
         }
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -858,7 +859,7 @@ impl TickerCharts for Ticker {
                 }
             }
         }
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -1005,7 +1006,7 @@ impl TickerCharts for Ticker {
                 }
             }
         }
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -1152,7 +1153,7 @@ impl TickerCharts for Ticker {
                 }
             }
         }
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
@@ -1274,7 +1275,7 @@ impl TickerCharts for Ticker {
                 }
             }
         }
-        let datetimes = match crate::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);

@@ -15,7 +15,8 @@ pub use symbols::{active_symbols, insert_active_symbols, check_equity_exists};
 pub mod time_series;
 pub use time_series::{timeseries, insert_timeseries};
 pub mod to_dataframe;
-pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe, i64_column_to_datetime_vec};
+pub use to_dataframe::{ohlcv_to_dataframe, daily_ohlcv_to_dataframe};
+pub use super::dataframes::i64_column_to_datetime_vec;
 
 /// Metadata stock metadata
 #[derive(Debug, Deserialize, Serialize)]
@@ -173,6 +174,10 @@ pub fn metadata(
         symbol: stock_symbol.to_string(),
         ..Default::default()
     };
+    if crate::data::sql::live_data::live_data_count(sql_connection.clone(), &m) > 0 {
+        let meta = crate::data::sql::live_data::get_stock_metadata(sql_connection.clone(), stock_symbol); 
+        return meta;
+    }
     let mut exchange_string = exchange_code.to_string();
     let equity_list = symbols::equity(sql_connection.clone(), stock_symbol);
     let mut desired_found = false;

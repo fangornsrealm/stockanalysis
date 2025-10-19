@@ -1,6 +1,7 @@
 use polars::prelude::*;
 use chrono::{NaiveTime, offset::Local, Timelike};
 use api::prelude::*;
+use api::data::dataframes::{i64_column_to_datetime_vec, i64_column_to_vec, f64_column_to_vec};
 
 #[allow(unreachable_code, unused_variables, dead_code)]
 pub fn run_analysis_on_updated_dataframe(
@@ -29,14 +30,14 @@ pub fn run_analysis_on_updated_dataframe(
                     continue;
                 }
                 let mut df = vec[0].clone();
-                match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&df) {
+                match i64_column_to_datetime_vec(&df) {
                     Ok(tv) => vt.push(tv),
                     Err(error) => {
                         tracing::error!("Unable to turn get column timestamp! {:?}", error);
                         continue;
                     }
                 };
-                match api::data::sql::to_dataframe::f64_column_to_vec(&df, "adjclose") {
+                match f64_column_to_vec(&df, "adjclose") {
                     Ok(av) => vv.push(av),
                     Err(error) => {
                         tracing::error!("Unable to turn get column adjclose! {:?}", error);
@@ -46,14 +47,14 @@ pub fn run_analysis_on_updated_dataframe(
                 if vec.len() > 1 {
                     for i in 1..vec.len() {
                         let dftmp = vec[i].clone();
-                        match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&dftmp) {
+                        match i64_column_to_datetime_vec(&dftmp) {
                             Ok(tv) => vt.push(tv),
                             Err(error) => {
                                 tracing::error!("Unable to turn get column timestamp! {:?}", error);
                                 continue;
                             }
                         };
-                        match api::data::sql::to_dataframe::f64_column_to_vec(&dftmp, "adjclose") {
+                        match f64_column_to_vec(&dftmp, "adjclose") {
                             Ok(av) => vv.push(av),
                             Err(error) => {
                                 tracing::error!("Unable to turn get column adjclose! {:?}", error);
@@ -76,21 +77,21 @@ pub fn run_analysis_on_updated_dataframe(
                 continue;
             }
         };
-        let timestamps = match api::data::sql::to_dataframe::i64_column_to_vec(&ohlcv, "timestamp") {
+        let timestamps = match i64_column_to_vec(&ohlcv, "timestamp") {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn get column timestamp! {:?}", error);
                 continue;
             }
         };
-        let datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 continue;
             }
         };
-        let adjclose = match api::data::sql::to_dataframe::f64_column_to_vec(&ohlcv, "adjclose") {
+        let adjclose = match f64_column_to_vec(&ohlcv, "adjclose") {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn get column adjclose! {:?}", error);

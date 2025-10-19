@@ -555,7 +555,7 @@ pub fn timestamp_from_datetime_local(dt: chrono::NaiveDateTime, tz: &str) -> i64
 pub fn insert_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    series: &market_data::EnhancedMarketSeries,
+    series: &market_data::MarketSeries,
 ) -> Vec<super::TimeSeriesData> {
     let existing = all_live_data(sql_connection.clone(), metadata);
     let exists: std::collections::BTreeSet<i64> = existing.iter().map(|t| t.datetime).collect();
@@ -575,9 +575,9 @@ pub fn insert_live_data(
     //let seconds_from_midnight_normalized = (minutes_from_midnight - series.series.len() as u32) * 60;
     //let time = chrono::NaiveTime::from_num_seconds_from_midnight_opt(seconds_from_midnight_normalized, 0).unwrap();
     //let base_timestamp = chrono::Utc::now().date_naive().and_time(time).and_utc().timestamp();
-    for i in 0..series.series.len() {
+    for i in 0..series.data.len() {
         //let timestamp = base_timestamp + i as i64 * 60;
-        let timestamp = timestamp_from_datetime_local(series.series[i].date.clone(), &metadata.exchange_timezone);
+        let timestamp = timestamp_from_datetime_local(series.data[i].date.clone(), &metadata.exchange_timezone);
         if exists.contains(&timestamp) {
             continue;
         }
@@ -590,7 +590,7 @@ pub fn insert_live_data(
         let hist_value = 0.0_f32;
         match connection.execute(
             "INSERT INTO live_data (timestamp, symbol, currency, exchange, open, high, low, close, volume, sma, ema, rsi, stochastic, macd_value, signal_value, hist_value ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange_code, &series.series[i].open, &series.series[i].high, &series.series[i].low, &series.series[i].close, &series.series[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
+            params![&timestamp, &metadata.symbol, &metadata.currency, &metadata.exchange_code, &series.data[i].open, &series.data[i].high, &series.data[i].low, &series.data[i].close, &series.data[i].volume, &sma, &ema, &rsi, &stochastic, &macd_value, &signal_value, &hist_value ],
         ) {
             Ok(_retval) => {} //tracing::debug!("Inserted {} video with ID {} and location {} into candidates.", video.id, video.index, candidate_id),
             Err(error) => {
@@ -600,11 +600,11 @@ pub fn insert_live_data(
         }
         let t = super::TimeSeriesData {
             datetime: timestamp,
-            open: series.series[i].open as f64,
-            high: series.series[i].high as f64,
-            low: series.series[i].low as f64,
-            close: series.series[i].close as f64,
-            volume: series.series[i].volume as f64,
+            open: series.data[i].open as f64,
+            high: series.data[i].high as f64,
+            low: series.data[i].low as f64,
+            close: series.data[i].close as f64,
+            volume: series.data[i].volume as f64,
         };
         v.push(t);
     }
@@ -614,7 +614,7 @@ pub fn insert_live_data(
 pub fn _delete_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    _timeseries: &market_data::EnhancedMarketSeries,
+    _timeseries: &market_data::MarketSeries,
 ) {
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
@@ -632,7 +632,7 @@ pub fn _delete_live_data(
 pub fn _update_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
-    timeseries: &market_data::EnhancedMarketSeries,
+    timeseries: &market_data::MarketSeries,
 ) {
     _delete_live_data(sql_connection.clone(), metadata, timeseries);
     insert_live_data(sql_connection.clone(), metadata, timeseries);

@@ -1,4 +1,5 @@
 use chrono::{NaiveTime, offset::Local};
+use api::data::dataframes::{i64_column_to_datetime_vec, i64_column_to_vec, f64_column_to_vec};
 
 #[allow(unreachable_code, unused_variables, dead_code)]
 pub fn run_analysis_on_historical_data(
@@ -32,21 +33,21 @@ pub fn run_analysis_on_historical_data(
                 continue;
             }
         };
-        let timestamps = match api::data::sql::to_dataframe::i64_column_to_vec(&ohlcv, "timestamp") {
+        let timestamps = match i64_column_to_vec(&ohlcv, "timestamp") {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn get column timestamp! {:?}", error);
                 continue;
             }
         };
-        let _datetimes = match api::data::sql::to_dataframe::i64_column_to_datetime_vec(&ohlcv) {
+        let _datetimes = match i64_column_to_datetime_vec(&ohlcv) {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn timestamps into dates! {:?}", error);
                 continue;
             }
         };
-        let adjclose = match api::data::sql::to_dataframe::f64_column_to_vec(&ohlcv, "adjclose") {
+        let adjclose = match f64_column_to_vec(&ohlcv, "adjclose") {
             Ok(df) => df,
             Err(error) => {
                 tracing::error!("Unable to turn get column adjclose! {:?}", error);

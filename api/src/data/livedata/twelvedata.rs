@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Datelike};
 use lazy_static::lazy_static;
-use market_data::{EnhancedMarketSeries, Interval, MarketClient, Twelvedata};
+use market_data::{MarketSeries, Interval, MarketClient, Twelvedata};
 use std::env::var;
 
 use crate::data::sql;
@@ -17,7 +17,7 @@ pub fn live_data(
     start_time: chrono::NaiveDateTime,
     end_time: chrono::NaiveDateTime,
     metadata: &mut crate::data::sql::MetaData,
-)  -> Result<Vec<EnhancedMarketSeries>, Box<dyn std::error::Error>> {
+)  -> Result<Vec<MarketSeries>, Box<dyn std::error::Error>> {
     let site: Twelvedata = Twelvedata::new(TOKEN.to_string());
     // create the MarketClient
     let mut client: MarketClient<Twelvedata> = MarketClient::new(site);
@@ -29,7 +29,7 @@ pub fn live_data(
     if end_time.date() != start_time.date() {
         // last data from yesterday
         let start_time_today = end_time.date()
-            .and_hms_opt(7, 0, 0).unwrap()
+            .and_hms_opt(0, 0, 0).unwrap()
             .and_local_timezone(chrono::Local).unwrap()
             .naive_utc();
         num_data = ((end_time - start_time_today).as_seconds_f32() / 60.0).round().abs() as u32;
@@ -71,18 +71,10 @@ pub fn live_data(
     //    Err(err) => tracing::error!("{}", err),
     //});
     // the data can be enhanced with the calculation of a number of  market indicators
-    let enhanced_data: Vec<EnhancedMarketSeries> = resvec
+    let enhanced_data: Vec<MarketSeries> = resvec
         .into_iter()
         .filter_map(|series| series.ok())
-        .map(|series| {
-            series
-                .enhance_data()
-                //.with_sma(10)
-                //.with_ema(20)
-                //.with_ema(6)
-                //.with_rsi(14)
-                //.calculate()
-        })
+        .map(|series| {series})
         .collect();
 
     Ok(enhanced_data)
