@@ -1,4 +1,4 @@
-use chrono::Timelike;
+use chrono::{Datelike, Timelike};
 use rusqlite::params;
 
 /// return the number of time series data for the stock
@@ -515,6 +515,43 @@ pub fn get_stock_metadata(
     metadata
 }
 
+pub fn timestamp_from_datetime_local(dt: chrono::NaiveDateTime, tz: &str) -> i64 {
+    use chrono::TimeZone;
+    use chrono::offset::LocalResult;
+    use chrono_tz::Tz;
+
+    let tz: Tz = match tz.parse() {
+        Ok(res) => res,
+        Err(e) => {
+            tracing::error!("Failed to parse timezone: {}", e);
+            return 0;
+        },
+    };
+    //let offset = tz.offset_from_utc_datetime(&dt);
+    let year = dt.year();
+    let month = dt.month();
+    let day = dt.day();
+    let hour = dt.hour();
+    let min = dt.minute();
+    let sec = dt.second();
+    let localtime = match tz.with_ymd_and_hms(year, month, day, hour, min, sec) {
+        LocalResult::Single(res) => res,
+        LocalResult::Ambiguous(res1, res2) => {
+            if res2 > res1 {
+                res2
+            } else {
+                res1
+            }
+        },
+        LocalResult::None => {
+            tracing::error!("Failed to parse ymd hms");
+            return 0;
+        },
+    };
+
+    localtime.to_utc().timestamp()
+}
+
 pub fn insert_live_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     metadata: &super::MetaData,
@@ -532,14 +569,15 @@ pub fn insert_live_data(
     };
     // Calculate the time stamp for the first entry in the list
     // List length depends on how many minutes were available
-    let seconds_from_midnight = chrono::Utc::now().num_seconds_from_midnight();
+    //let seconds_from_midnight = chrono::Utc::now().num_seconds_from_midnight();
     // round to the last full minute and subtract the number of entries per minute
-    let minutes_from_midnight = seconds_from_midnight / 60;
-    let seconds_from_midnight_normalized = (minutes_from_midnight - series.series.len() as u32) * 60;
-    let time = chrono::NaiveTime::from_num_seconds_from_midnight_opt(seconds_from_midnight_normalized, 0).unwrap();
-    let base_timestamp = chrono::Utc::now().date_naive().and_time(time).and_utc().timestamp();
+    //let minutes_from_midnight = seconds_from_midnight / 60;
+    //let seconds_from_midnight_normalized = (minutes_from_midnight - series.series.len() as u32) * 60;
+    //let time = chrono::NaiveTime::from_num_seconds_from_midnight_opt(seconds_from_midnight_normalized, 0).unwrap();
+    //let base_timestamp = chrono::Utc::now().date_naive().and_time(time).and_utc().timestamp();
     for i in 0..series.series.len() {
-        let timestamp = base_timestamp + i as i64 * 60;
+        //let timestamp = base_timestamp + i as i64 * 60;
+        let timestamp = timestamp_from_datetime_local(series.series[i].date.clone(), &metadata.exchange_timezone);
         if exists.contains(&timestamp) {
             continue;
         }

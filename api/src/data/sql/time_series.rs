@@ -258,8 +258,7 @@ pub fn insert_timeseries(
     };
 
     for i in 0..series.data.len() {
-        let time= chrono::NaiveTime::from_num_seconds_from_midnight_opt(22 * 3600, 0).expect("If this does not work the chrono code is crap!");
-        let timestamp = series.data[i].date.and_time(time).and_utc().timestamp();
+        let timestamp = series.data[i].date.and_utc().timestamp();
         if exists.contains(&timestamp) {
             continue;
         }

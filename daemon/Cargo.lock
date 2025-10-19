@@ -163,6 +163,7 @@ dependencies = [
  "augurs-seasons",
  "cached",
  "chrono",
+ "chrono-tz",
  "dirs",
  "env_logger",
  "futures",
