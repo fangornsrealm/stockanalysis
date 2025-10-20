@@ -38,6 +38,7 @@ pub trait TickerCharts {
     fn ohlcv_table_live(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn candlestick_chart_live(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn candlestick_chart_live_df(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
@@ -49,7 +50,7 @@ pub trait TickerCharts {
     fn macd_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn ppo_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn mfi_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn stochastic_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData,height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn stochastic_chart_recent(&self, ohlcv: DataFrame, metadata: &crate::data::sql::MetaData, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
 }
 
 impl TickerCharts for Ticker {
@@ -335,6 +336,151 @@ impl TickerCharts for Ticker {
         let sql_connection = crate::data::sql::connect();
         let metadata = crate::data::sql::live_data::get_stock_metadata(sql_connection.clone(), &self.ticker);
         let title = format!("{} ({}) in {} via {}", metadata.name, self.ticker, metadata.currency, metadata.exchange);
+        let layout = Layout::new()
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Intra-day Chart</span>", title))
+            .grid(
+                LayoutGrid::new()
+                    .rows(3)
+                    .columns(1)
+                    .pattern(GridPattern::Coupled)
+                    .row_order(RowOrder::TopToBottom)
+            )
+            .x_axis(
+                Axis::new()
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(vec![
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1H")
+                            .step(SelectorStep::Hour)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1D")
+                            .step(SelectorStep::Day)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(6)
+                            .label("6M")
+                            .step(SelectorStep::Month)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("YTD")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::ToDate),
+                        SelectorButton::new()
+                            .count(1)
+                            .label("1Y")
+                            .step(SelectorStep::Year)
+                            .step_mode(StepMode::Backward),
+                        SelectorButton::new()
+                            .label("MAX")
+                            .step(SelectorStep::All),
+                    ])),
+            )
+            .y_axis(
+                Axis::new()
+                    .domain(&[0.4, 1.0])
+            )
+            .y_axis2(
+                Axis::new()
+                    .domain(&[0.2, 0.4])
+            )
+            .y_axis3(
+                Axis::new()
+                    .domain(&[0.0, 0.2])
+            );
+
+        let mut plot = Plot::new();
+        plot.add_trace(Box::new(candlestick_trace));
+        plot.add_trace(volume_trace);
+        plot.add_trace(ma50_trace);
+        plot.add_trace(ma200_trace);
+        plot.add_trace(rsi_trace);
+        
+        let plot = set_layout(plot, layout, height, width);
+
+        Ok(plot)
+
+    }
+
+    async fn candlestick_chart_live_df(
+        &self, 
+        ohlcv: DataFrame, 
+        metadata: &crate::data::sql::MetaData, 
+        height: Option<usize>, 
+        width: Option<usize>
+    ) -> Result<Plot, Box<dyn Error>> {
+        let mut ohlcv = ohlcv;
+        if ohlcv.height() < 6 {
+            return Err(format!("Not enough data found for symbol {}", self.ticker).into());
+        }
+        if ohlcv.height() > 250 {
+            // drop enough values to limit the graphs to < 100 values
+            let num_to_average = ((ohlcv.height() as f64/ 250.0) + 0.5).round();
+            ohlcv = match crate::data::sql::to_dataframe::smooth_ohlcv(ohlcv.clone(), num_to_average as u32) {
+                Ok(df) => df,
+                Err(e) => {
+                    tracing::error!("Unable to reduce dataframe to usable size! {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+        let datetimes = match i64_column_to_datetime_vec(&ohlcv) {
+            Ok(df) => df,
+            Err(error) => {
+                tracing::error!("Unable to turn timestamps into dates! {:?}", error);
+                return Err(error);
+            }
+        };
+        let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let open = ohlcv.column("open")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let high = ohlcv.column("high")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let low = ohlcv.column("low")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let close = ohlcv.column("close")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let volume = ohlcv.column("volume")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let rsi_df = self.rsi_df(ohlcv.clone(), 14, None).await?;
+        let rsi_values = rsi_df.column("rsi-14")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ma_50_df = self.sma_df(ohlcv.clone(), 50, None).await?;
+        let ma_50_values = ma_50_df.column("sma-50")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ma_200_df = self.sma_df(ohlcv.clone(), 200, None).await?;
+        let ma_200_values = ma_200_df.column("sma-200")?.f64()?.to_vec()
+            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
+            .name("Prices");
+        let volume_trace = Bar::new(x.clone(), volume)
+            .name("Volume")
+            //.marker(Marker::new().color(NamedColor::Blue))
+            .x_axis("x")
+            .y_axis("y2");
+        let rsi_trace = Scatter::new(x.clone(), rsi_values)
+            .name("RSI 14")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline))
+            .x_axis("x")
+            .y_axis("y3");
+        let ma50_trace = Scatter::new(x.clone(), ma_50_values)
+            .name("MA 50")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+        let ma200_trace = Scatter::new(x.clone(), ma_200_values)
+            .name("MA 200")
+            .mode(Mode::Lines)
+            .line(Line::new().shape(LineShape::Spline));
+        let title = format!("{} ({}) in {} via {}", metadata.name, metadata.symbol, metadata.currency, metadata.exchange);
         let layout = Layout::new()
             .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Intra-day Chart</span>", title))
             .grid(

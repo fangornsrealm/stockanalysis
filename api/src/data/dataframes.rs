@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use crate::prelude::*;
 use std::error::Error;
-use chrono::{DateTime, NaiveDateTime, NaiveTime, offset::Local, Timelike, Utc};
+use chrono::{Datelike, DateTime, Days, NaiveDateTime, NaiveTime, offset::Local, Timelike, Utc};
 use crate::data::sql::live_data::timestamp_from_datetime_local;
 
 /// Converts a date string in YYYY-MM-DD format to a Unix Timestamp milliseconds since the Epoch
@@ -48,6 +48,7 @@ pub fn i64_column_to_datetime_vec(df: &DataFrame) -> Result<Vec<NaiveDateTime>, 
     Ok(df2)
 }
 
+/// copy all f64 values in a specified column to a Vec
 pub fn f64_column_to_vec(
     df: &DataFrame, 
     columnname: &str
@@ -57,6 +58,7 @@ pub fn f64_column_to_vec(
     Ok(v)
 }
 
+/// copy all i64 values in a specified column to a Vec
 pub fn i64_column_to_vec(
     df: &DataFrame, 
     columnname: &str
@@ -66,20 +68,18 @@ pub fn i64_column_to_vec(
     Ok(v)
 }
 
-
-#[allow(unreachable_code, unused_variables, dead_code)]
-pub fn run_analysis_on_updated_dataframe(
-    symbols: &Vec<String>,
-    tickers_mutex: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
-    dataframes: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>>,
-    filepath: &std::path::PathBuf,
-) {
-    let now = Local::now();
-    
-    for symbol in symbols.iter() {
-    }
+pub fn round_time(t: DateTime<Utc>) -> DateTime<Utc> {
+    let hour = t.hour();
+    let minute = t.minute();
+    let sec = t.second();
+    let time_rounded = match NaiveTime::from_hms_opt(hour, minute, sec) {
+        Some(t) => t,
+        None => return t,
+    };
+    t.date_naive().and_time(time_rounded).and_utc()
 }
 
+/// convert a vector of a data structure to a dataframe of columns
 fn to_dataframe(e: market_data::MarketSeries, m: &crate::data::sql::MetaData) -> Result<DataFrame, Box<dyn Error>> {
     let timestamp = e.data
         .iter()
@@ -135,17 +135,24 @@ fn to_dataframe(e: market_data::MarketSeries, m: &crate::data::sql::MetaData) ->
     Ok(df)
 }
 
+/// append each column of df2 to the according column of sdf1, assuming they have exactly the same layout
 fn concatenate_dataframe(df1: DataFrame, df2: DataFrame) -> Result<DataFrame, Box<dyn Error>> {
     let df = concat([df1.lazy(), df2.lazy()], UnionArgs::default())?.collect()?;
     Ok(df)
 }
 
+/// Limit the length of a dataframe to 24 * 60 minutely values
 fn filter_dataframe_24hours(df: DataFrame) -> Result<DataFrame, Box<dyn Error>> {
+    let now = Utc::now();
+    if now.weekday().num_days_from_monday() > 4 {
+        if df.height() <= 24*60 {
+            return Ok(df);
+        }
+    }
     let timestamp = i64_column_to_vec(&df, "timestamp")?;
-    let now = chrono::Utc::now();
     let num_seconds_from_midnight = now.num_seconds_from_midnight();
-    let start = now.checked_sub_days(chrono::Days::new(1)).unwrap().timestamp_millis();
-    let end = now.date_naive().and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(num_seconds_from_midnight, 0).unwrap()).and_utc().timestamp_millis();
+    let start = now.checked_sub_days(Days::new(1)).unwrap().timestamp_millis();
+    let end = now.date_naive().and_time(NaiveTime::from_num_seconds_from_midnight_opt(num_seconds_from_midnight, 0).unwrap()).and_utc().timestamp_millis();
     let mask = timestamp.iter()
                 .map(|x| {
                     start < *x && *x < end

@@ -11,7 +11,7 @@ use tokio::{
 use api::prelude::*;
 
 mod charts;
-pub use charts::{run_ticker_charts, run_ticker_charts_livedata};
+pub use charts::{run_ticker_charts, run_ticker_charts_livedata, run_charts_on_updated_dataframe};
 mod daily_data;
 pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
@@ -21,7 +21,7 @@ mod screener;
 mod portfolio;
 pub use portfolio::run_portfolio_analysis;
 
-pub use api::data::dataframes::{get_dataframe_for_active_symbols, run_analysis_on_updated_dataframe};
+pub use api::data::dataframes::get_dataframe_for_active_symbols;
 
 /// convert an OsString (from PathBuf) to a usable String
 pub fn osstr_to_string(osstr: std::ffi::OsString) -> String {
@@ -178,10 +178,10 @@ pub async fn run_jobs(
         run_analysis_on_historical_data(sql_connection.clone(), &symbols);
     } else {
         // run live updates every minute on Weekdays
-        
+        let archivepath = archive_path(&filepath);
         tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
         get_dataframe_for_active_symbols(&symbols, tickers_mutex.clone(), dataframes.clone());
-        run_analysis_on_updated_dataframe(&symbols, tickers_mutex.clone(), dataframes.clone(), &filepath);
+        run_charts_on_updated_dataframe(&symbols, sql_connection.clone(), tickers_mutex.clone(), dataframes.clone(), &filepath, &archivepath);
     }
 
     Ok(())
