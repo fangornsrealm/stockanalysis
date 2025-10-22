@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use crate::prelude::*;
 use std::error::Error;
-use chrono::{Datelike, DateTime, Days, NaiveDateTime, NaiveTime, offset::Local, Timelike, Utc};
+use chrono::{Datelike, DateTime, Days, NaiveDateTime, NaiveTime, Timelike, Utc};
 use crate::data::sql::live_data::timestamp_from_datetime_local;
 
 /// Converts a date string in YYYY-MM-DD format to a Unix Timestamp milliseconds since the Epoch
@@ -118,11 +118,12 @@ fn to_dataframe(e: market_data::MarketSeries, m: &crate::data::sql::MetaData) ->
         }
     };
 
-    tracing::debug!("Retrieved {} lines of data.", df.height());
+    //tracing::info!("Retrieved {} lines of data.", df.height());
     // check if any adjclose values are 0.0
     //let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
     //let df = df.filter(&mask)?;
 
+    //tracing::info!("Filtering data between {} and {}.", m.start_date.naive_local().to_string(), m.end_date.naive_local().to_string());
     // check if any returned dates smaller than start date or greater than end date
     let start = m.start_date.timestamp_millis();
     let end = m.end_date.timestamp_millis();
@@ -132,6 +133,10 @@ fn to_dataframe(e: market_data::MarketSeries, m: &crate::data::sql::MetaData) ->
                 })
                 .collect();
     let df = df.filter(&mask)?;
+    //tracing::info!("{} lines of data are left for that time frame.", df.height());
+    // check if any adjclose values are 0.0
+    //let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
+    //let df = df.filter(&mask)?;
     Ok(df)
 }
 
@@ -198,6 +203,7 @@ fn append_new_data_to_dataframe(df1: DataFrame, m: &mut crate::data::sql::MetaDa
 
 fn new_dataframe(m: &mut crate::data::sql::MetaData) -> Result<DataFrame, Box<dyn Error>> {
     let symbol = &m.symbol.to_string();
+    tracing::info!("Retrieving data between {} and {}.", m.start_date.naive_local().to_string(), m.end_date.naive_local().to_string());
     let serieses = match crate::data::livedata::live_data(&symbol, m.start_date.naive_utc(), m.end_date.naive_utc(), m) {
         Ok(res) => res,
         Err(e) => {
@@ -237,18 +243,29 @@ fn new_dataframe(m: &mut crate::data::sql::MetaData) -> Result<DataFrame, Box<dy
     Ok(ohlcv)
 }
 
+fn prepare_metadata(symbol: &str) -> crate::data::sql::MetaData {
+    let nowish = Utc::now();
+    tracing::info!("Now is {}.", nowish.naive_local().to_string());
+    let num_seconds_from_midnight = nowish.num_seconds_from_midnight();
+    let end_date = nowish.date_naive().and_time(NaiveTime::from_num_seconds_from_midnight_opt(num_seconds_from_midnight, 0).unwrap()).and_utc();
+    let start_date = end_date.checked_sub_days(Days::new(1)).unwrap();
+    tracing::info!("Retrieving data between {} and {}.", start_date.naive_local().to_string(), end_date.naive_local().to_string());
+    let metadata = crate::data::sql::MetaData {
+        symbol: symbol.to_string(),
+        start_date: start_date.clone(),
+        end_date: end_date.clone(),
+        ..Default::default()
+    };
+    metadata
+}
+
 #[allow(unreachable_code, unused_variables, dead_code)]
 pub fn get_dataframe_for_active_symbols(
     symbols: &Vec<String>,
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
     dataframes_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>>,
 ) {
-    return;
-    let nowish = Local::now();
-    let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
-    let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600 + 59*60, 0).expect("That should never fail!");
-    let start_date = nowish.clone().date_naive().and_time(start_time);
-    let end_date = nowish.clone().date_naive().and_time(end_time);
+    //return;
     let mut dataframes = match dataframes_mutex.lock() {
         Ok(mutex) => mutex,
         Err(e) => {
@@ -257,11 +274,7 @@ pub fn get_dataframe_for_active_symbols(
         }
     };
     for symbol in symbols.iter() {
-        let mut metadata = crate::data::sql::MetaData {
-            symbol: symbol.to_string(),
-            start_date: start_date.and_utc(),
-            end_date: end_date.and_utc(),
-            ..Default::default()};
+        let mut metadata = prepare_metadata(symbol);
         let mut ohlcv;
         if dataframes.contains_key(symbol) {
             // update the existing entry

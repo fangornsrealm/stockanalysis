@@ -22,17 +22,9 @@ pub fn live_data(
     // create the MarketClient
     let mut client: MarketClient<Twelvedata> = MarketClient::new(site);
     // calculate the number of seconds since the last timestamp
-    let mut num_data = ((end_time - start_time).as_seconds_f32() / 60.0).round().abs() as u32;
+    let num_data = ((end_time - start_time).as_seconds_f32() / 60.0).round().abs() as u32;
     if num_data == 0 {
         return Err(format!("No new data available for this stock!").into())
-    }
-    if end_time.date() != start_time.date() {
-        // last data from yesterday
-        let start_time_today = end_time.date()
-            .and_hms_opt(0, 0, 0).unwrap()
-            .and_local_timezone(chrono::Local).unwrap()
-            .naive_utc();
-        num_data = ((end_time - start_time_today).as_seconds_f32() / 60.0).round().abs() as u32;
     }
     // check if we have data for this symbol
     let stock_symbol = symbol.to_string();

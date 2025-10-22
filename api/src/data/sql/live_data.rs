@@ -370,7 +370,10 @@ pub fn get_stock_metadata(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
     symbol: &str,
 ) -> crate::data::sql::MetaData {
-    let mut metadata = crate::data::sql::MetaData {..Default::default()};
+    let mut metadata = crate::data::sql::MetaData {
+        symbol: symbol.to_string(), 
+        ..Default::default()
+    };
     let connection = match sql_connection.lock() {
         Ok(conn) => conn,
         Err(error) => {
@@ -528,6 +531,7 @@ pub fn timestamp_from_datetime_local(dt: chrono::NaiveDateTime, tz: &str) -> i64
         },
     };
     //let offset = tz.offset_from_utc_datetime(&dt);
+    //tracing::info!("Converting date {} from Timezone {}.", dt.to_string(), tz.to_string());
     let year = dt.year();
     let month = dt.month();
     let day = dt.day();

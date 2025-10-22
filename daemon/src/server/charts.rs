@@ -387,7 +387,7 @@ pub fn run_charts_on_updated_dataframe(
     filepath: &std::path::PathBuf,
     archivepath: &std::path::PathBuf,
 ) {
-    return;
+    //return;
     let now = chrono::Local::now();
 
     for i in 0..symbols.len() {
