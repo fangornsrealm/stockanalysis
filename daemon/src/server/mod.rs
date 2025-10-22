@@ -321,6 +321,10 @@ mod test {
             Ok(()) => {},
             Err(e) => tracing::error!("screener process threw error: {}", e),
         }
+        match run_ticker_charts_livedata(&symbols, &filepath, tickers.clone()) {
+            Ok(()) => {},
+            Err(e) => tracing::error!("screener process threw error: {}", e),
+        }
     }
 
     #[tokio::test]

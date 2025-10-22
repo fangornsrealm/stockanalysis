@@ -175,7 +175,8 @@ pub fn metadata(
         ..Default::default()
     };
     if crate::data::sql::live_data::live_data_count(sql_connection.clone(), &m) > 0 {
-        let meta = crate::data::sql::live_data::get_stock_metadata(sql_connection.clone(), stock_symbol); 
+        let mut meta = crate::data::sql::live_data::get_stock_metadata(sql_connection.clone(), stock_symbol); 
+        meta.symbol = stock_symbol.to_string();
         return meta;
     }
     let mut exchange_string = exchange_code.to_string();

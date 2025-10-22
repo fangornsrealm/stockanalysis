@@ -1,6 +1,6 @@
 use polars::prelude::*;
 use std::error::Error;
-
+use chrono::{Datelike, Timelike};
 use api::prelude::*;
 
 fn get_chart_daily(ticker: &Ticker) -> Result<DataFrame, Box<dyn Error>> {
@@ -236,11 +236,29 @@ pub fn run_ticker_charts_livedata(
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
 ) -> Result<(), Box<dyn Error>> {
     let symbols: Vec<&str> = symbolsstrings.iter().map(|s| &**s).collect();
+    // find the last day for which we actually have data in the database
     let yesterday = super::yesterday();
+    let now = chrono::Local::now();
+    let today = if now.hour() > 22 {
+        if now.weekday().num_days_from_monday() == 6 {
+            yesterday.checked_sub_days(chrono::Days::new(1)).unwrap()
+        } else if now.weekday().num_days_from_monday() == 5 {
+            yesterday
+        } else {
+            yesterday.checked_add_days(chrono::Days::new(1)).unwrap()
+        }
+    } else {
+        if now.weekday().num_days_from_monday() == 6 {
+            yesterday.checked_sub_days(chrono::Days::new(2)).unwrap()
+        } else if now.weekday().num_days_from_monday() == 5 {
+            yesterday.checked_sub_days(chrono::Days::new(1)).unwrap()
+        } else {
+            yesterday
+        }
+    };
     let archivepath = super::archive_path(filepath);
     for i in 0..symbols.len() {
         let stock_symbol = symbols[i].to_string();
-        let today = yesterday.checked_add_days(chrono::Days::new(1)).unwrap();
         let start_date = today.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).and_utc();
         let end_date = today.and_time(chrono::NaiveTime::from_num_seconds_from_midnight_opt(23 * 3600 + 59 * 60, 0).unwrap()).and_utc();
         let mut ticker: Ticker;
@@ -369,6 +387,7 @@ pub fn run_charts_on_updated_dataframe(
     filepath: &std::path::PathBuf,
     archivepath: &std::path::PathBuf,
 ) {
+    return;
     let now = chrono::Local::now();
 
     for i in 0..symbols.len() {
@@ -412,6 +431,10 @@ pub fn run_charts_on_updated_dataframe(
                 return;
             }
         };
+        if !dataframes.contains_key(&stock_symbol) {
+            continue;
+        }
+
         let ohlcv = dataframes[&stock_symbol].clone();
         let metadata = api::data::sql::live_data::get_stock_metadata(sql_connection.clone(), &stock_symbol);
 
