@@ -175,7 +175,7 @@ pub fn local_min_max(
         }
         for i in 1..smooth_5.len() {
             if smooth_5[i] < smooth_5[i - 1] && slope > 0 {
-                let start = (i-1)*5;
+                let start = (i-1)*5 + 1;
                 let end = i * 5;
                 for j in start..end {
                     if series[j] < series[j - 1] && slope > 0 {
@@ -184,7 +184,7 @@ pub fn local_min_max(
                     }
                 }
             } else if smooth_5[i] > smooth_5[i - 1] && slope < 0 {
-                let start = (i-1)*5;
+                let start = (i-1)*5 + 1;
                 let end = i * 5;
                 for j in start..end {
                     if series[j] > series[j - 1] && slope < 0 {
@@ -557,6 +557,9 @@ pub fn split_series_into_seasons<T: Clone>(series: &Vec<T>, minutes_per_period: 
             w.clear();
             count = 0;
         }
+    }
+    if w.len() != 0 {
+        v.push(w);
     }
     v
 }
