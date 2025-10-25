@@ -4,14 +4,15 @@ use api::data::dataframes::{i64_column_to_datetime_vec, i64_column_to_vec, f64_c
 #[allow(unreachable_code, unused_variables, dead_code)]
 pub fn run_analysis_on_historical_data(
     sql_connection: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, 
-    symbols: &Vec<String>
+    symbols: &Vec<String>,
+    filepath: &std::path::PathBuf,
 ) {
     let now = Local::now();
     
     for symbol in symbols.iter() {
         let start_time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).expect("That should never fail!");
         let end_time = NaiveTime::from_num_seconds_from_midnight_opt(23*3600 + 59*60, 0).expect("That should never fail!");
-        let start_date = now.clone().date_naive().checked_sub_days(chrono::Days::new(90)).unwrap().and_time(start_time).and_utc();
+        let start_date = now.clone().date_naive().checked_sub_days(chrono::Days::new(250)).unwrap().and_time(start_time).and_utc();
         let end_date = now.clone().date_naive().and_time(end_time).and_utc();
         let ohlcv: polars::prelude::DataFrame = match api::data::sql::to_dataframe::daily_ohlcv_to_dataframe(
             sql_connection.clone(),
@@ -78,12 +79,20 @@ pub fn run_analysis_on_historical_data(
         if jumps.len() > 0 {
             api::data::sql::events::insert_jump_events(sql_connection.clone(), &jumps);
         }
+        crate::server::charts::event_chart_for_symbol(sql_connection.clone(), symbol, filepath);
+        
         // max one day of seasonality
         // for each season look for changepoints
         // and before that point analyze for increasing or decreasing slope
+        let mut used_seasonalities = std::collections::BTreeSet::new();
         let seasonality = api::analytics::detectors::seasonality(&adjclose, 10, 960, 0.2, false);
         for season_length in seasonality {
             //tracing::debug!("checking seasonality for symbol {} every {} minutes.", symbol, season_length);
+            if used_seasonalities.contains(&season_length) {
+                continue;
+            } else {
+                used_seasonalities.insert(season_length);
+            }
             let s = api::analytics::detectors::split_series_into_seasons(&adjclose, season_length as i64, 1);
             let t = api::analytics::detectors::split_series_into_seasons(&timestamps, season_length as i64, 1);
             for i in 0..s.len() {

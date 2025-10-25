@@ -83,6 +83,48 @@ fn stochastic_chart_recent_async(
     )
 }
 
+pub fn event_chart_for_symbol(
+    sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
+    symbol: &str,
+    filepath: &std::path::PathBuf,
+) {
+    let archivepath = super::archive_path(filepath);
+    let jumps: Vec<api::data::sql::JumpEventData> = api::data::sql::events::jump_events(sql_connection, symbol);
+    let datetimes = jumps.iter().map(|x| chrono::DateTime::from_timestamp_millis(x.datetime).unwrap()
+            .naive_utc()).collect::<Vec<chrono::NaiveDateTime>>();
+    let x = datetimes.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+    let val = jumps.iter()
+            .map(|o| o.percent)
+            .collect::<Vec<f64>>();
+
+    match api::charts::plotxy_one_curve(
+        x, 
+        val, 
+        "jump events", 
+        "Time", 
+        "Value in %", 
+        &format!("Jump events for symbol {}", symbol), 
+        None, None
+    ) {
+        Ok(pl) => {
+            let mut file_name = symbol.to_string();
+            file_name.extend("_jumps.jpg".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            pl.to_jpeg(&super::osstr_to_string(path.into_os_string()), 1200, 800, 1.0);
+            let html = pl.to_html();
+            let mut file_name = symbol.to_string();
+            file_name.extend("_jumps.html".chars());
+            let path = filepath.clone().join(file_name);
+            super::move_file_to_archive(filepath, &archivepath, &path);
+            std::fs::write(&path, &html).expect("Should be able to write to file");
+        },
+        Err(error) => {
+            tracing::error!("Failed to crate chart for ticker {}!: {}", symbol, error);
+        },
+    }
+}
+
 /// For a single symbol create a hard and HTML file for the last 120 minutes
 pub fn ticker_chart_recent_for_symbol(
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,

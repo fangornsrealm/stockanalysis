@@ -11,7 +11,7 @@ use tokio::{
 use api::prelude::*;
 
 mod charts;
-pub use charts::{run_ticker_charts, run_ticker_charts_livedata, run_charts_on_updated_dataframe};
+pub use charts::{run_ticker_charts, run_ticker_charts_livedata};
 mod daily_data;
 pub use daily_data::run_analysis_on_historical_data;
 mod live_data;
@@ -21,7 +21,7 @@ mod screener;
 mod portfolio;
 pub use portfolio::run_portfolio_analysis;
 
-pub use api::data::dataframes::get_dataframe_for_active_symbols;
+//pub use api::data::dataframes::get_dataframe_for_active_symbols;
 
 /// convert an OsString (from PathBuf) to a usable String
 pub fn osstr_to_string(osstr: std::ffi::OsString) -> String {
@@ -114,7 +114,7 @@ fn move_file_to_archive(filepath: &std::path::PathBuf, archivepath: &std::path::
 
 pub async fn run_jobs(
     tickers_mutex: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>>,
-    dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>>,
+    //dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>>,
     sql_connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
     last_nightly_update_mutex: Arc<std::sync::Mutex<chrono::DateTime<Local>>>,
 ) -> EyreResult<()> {
@@ -175,13 +175,14 @@ pub async fn run_jobs(
             Err(e) => tracing::error!("Portfolio optimization failed: {}", e)
         }
         tracing::debug!("Starting analysis of historical data.");
-        run_analysis_on_historical_data(sql_connection.clone(), &symbols);
-    } else {
+        run_analysis_on_historical_data(sql_connection.clone(), &symbols, &filepath);
+
+    //} else {
         // run live updates every minute on Weekdays
-        let archivepath = archive_path(&filepath);
-        tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
-        get_dataframe_for_active_symbols(&symbols, tickers_mutex.clone(), dataframes.clone());
-        run_charts_on_updated_dataframe(&symbols, sql_connection.clone(), tickers_mutex.clone(), dataframes.clone(), &filepath, &archivepath);
+    //    let archivepath = archive_path(&filepath);
+        //tracing::debug!("{} Skipping operation until there is live data.", now.naive_local().to_string());
+    //    get_dataframe_for_active_symbols(&symbols, tickers_mutex.clone(), dataframes.clone());
+    //    run_charts_on_updated_dataframe(&symbols, sql_connection.clone(), tickers_mutex.clone(), dataframes.clone(), &filepath, &archivepath);
     }
 
     Ok(())
@@ -194,10 +195,10 @@ pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreRes
             std::sync::Arc::new(std::sync::Mutex::new(
                 std::collections::HashMap::new()
             ));
-    let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
-            std::sync::Arc::new(std::sync::Mutex::new(
-                std::collections::HashMap::new()
-            ));
+    //let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
+    //        std::sync::Arc::new(std::sync::Mutex::new(
+    //            std::collections::HashMap::new()
+    //        ));
     let last_nightly_update: Arc<std::sync::Mutex<chrono::DateTime<Local>>> =
             std::sync::Arc::new(std::sync::Mutex::new(
                 chrono::DateTime::from_timestamp(24 * 3600 * 100,0).unwrap().naive_local().and_local_timezone(chrono::Local).unwrap()
@@ -206,7 +207,8 @@ pub async fn main(_options: Options, shutdown: broadcast::Sender<()>) -> EyreRes
         let mut interval = time::interval(Duration::from_secs(300)); // update of data takes over four minutes, so we cannot get faster than every five minutes
         loop {
             interval.tick().await; // This should go first.
-            tokio::spawn(run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()));
+            //tokio::spawn(run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()));
+            tokio::spawn(run_jobs(tickers.clone(), sql_connection.clone(), last_nightly_update.clone()));
         }
     });
     // Wait for shutdown
@@ -284,7 +286,8 @@ mod test {
         tracing::info!("test_analysis_on_historical_data");
         let sql_connection = api::data::sql::connect();
         let symbols = api::data::sql::symbols::active_symbols(sql_connection.clone());
-        daily_data::run_analysis_on_historical_data(sql_connection.clone(), &symbols);
+        let filepath = dirs::home_dir().unwrap().join("stock-analysis-reports");
+        daily_data::run_analysis_on_historical_data(sql_connection.clone(), &symbols, &filepath);
     }
 
     #[tokio::test]
@@ -445,18 +448,52 @@ mod test {
                 std::sync::Arc::new(std::sync::Mutex::new(
                     std::collections::HashMap::new()
                 ));
-        let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
-            std::sync::Arc::new(std::sync::Mutex::new(
-                std::collections::HashMap::new()
-            ));
+        //let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
+        //    std::sync::Arc::new(std::sync::Mutex::new(
+        //        std::collections::HashMap::new()
+        //    ));
         let last_nightly_update: Arc<std::sync::Mutex<chrono::DateTime<Local>>> =
                 std::sync::Arc::new(std::sync::Mutex::new(
                     chrono::DateTime::from_timestamp(24 * 3600 * 100,0).unwrap().naive_local().and_local_timezone(chrono::Local).unwrap()
                 ));
-        match run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()).await {
+        //match run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()).await {
+        match run_jobs(tickers.clone(), sql_connection.clone(), last_nightly_update.clone()).await {
             Ok(()) => {},
-            Err(e) => tracing::error!("screener process threw error: {}", e),
+            Err(e) => tracing::error!("main process threw error: {}", e),
         }
     }
 
+    #[tokio::test]
+    async fn test_main_loop() {
+        let journald_layer = tracing_journald::layer().unwrap();
+        let stdout_layer = fmt::Layer::default()
+            .with_writer(std::io::stdout)
+            .with_ansi(false)
+            .with_filter(filter::LevelFilter::INFO);
+        // Route events to both tokio-console and stdout
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(journald_layer)
+            .with(stdout_layer);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::info!("test_get_livedata_for_active_symbols");
+        let sql_connection = api::data::sql::connect();
+
+        let tickers: Arc<std::sync::Mutex<std::collections::HashMap<String, Ticker>>> =
+                std::sync::Arc::new(std::sync::Mutex::new(
+                    std::collections::HashMap::new()
+                ));
+        //let dataframes: Arc<std::sync::Mutex<std::collections::HashMap<String, DataFrame>>> =
+        //        std::sync::Arc::new(std::sync::Mutex::new(
+        //            std::collections::HashMap::new()
+        //        ));
+        let last_nightly_update: Arc<std::sync::Mutex<chrono::DateTime<Local>>> =
+                std::sync::Arc::new(std::sync::Mutex::new(
+                    chrono::DateTime::from_timestamp(24 * 3600 * 100,0).unwrap().naive_local().and_local_timezone(chrono::Local).unwrap()
+                ));
+        loop {
+            //let _ = run_jobs(tickers.clone(), dataframes.clone(), sql_connection.clone(), last_nightly_update.clone()).await;
+            let _ = run_jobs(tickers.clone(), sql_connection.clone(), last_nightly_update.clone()).await;
+        }
+    }
 }

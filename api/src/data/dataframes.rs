@@ -203,7 +203,7 @@ fn append_new_data_to_dataframe(df1: DataFrame, m: &mut crate::data::sql::MetaDa
 
 fn new_dataframe(m: &mut crate::data::sql::MetaData) -> Result<DataFrame, Box<dyn Error>> {
     let symbol = &m.symbol.to_string();
-    tracing::info!("Retrieving data between {} and {}.", m.start_date.naive_local().to_string(), m.end_date.naive_local().to_string());
+    //tracing::info!("Retrieving data between {} and {}.", m.start_date.naive_local().to_string(), m.end_date.naive_local().to_string());
     let serieses = match crate::data::livedata::live_data(&symbol, m.start_date.naive_utc(), m.end_date.naive_utc(), m) {
         Ok(res) => res,
         Err(e) => {
@@ -245,11 +245,11 @@ fn new_dataframe(m: &mut crate::data::sql::MetaData) -> Result<DataFrame, Box<dy
 
 fn prepare_metadata(symbol: &str) -> crate::data::sql::MetaData {
     let nowish = Utc::now();
-    tracing::info!("Now is {}.", nowish.naive_local().to_string());
+    //tracing::info!("Now is {}.", nowish.naive_local().to_string());
     let num_seconds_from_midnight = nowish.num_seconds_from_midnight();
     let end_date = nowish.date_naive().and_time(NaiveTime::from_num_seconds_from_midnight_opt(num_seconds_from_midnight, 0).unwrap()).and_utc();
     let start_date = end_date.checked_sub_days(Days::new(1)).unwrap();
-    tracing::info!("Retrieving data between {} and {}.", start_date.naive_local().to_string(), end_date.naive_local().to_string());
+    //tracing::info!("Retrieving data between {} and {}.", start_date.naive_local().to_string(), end_date.naive_local().to_string());
     let metadata = crate::data::sql::MetaData {
         symbol: symbol.to_string(),
         start_date: start_date.clone(),
